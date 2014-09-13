@@ -118,14 +118,36 @@ bool Repository::connect(QString filepath, bool isExisting) {
 	return true;
 }
 
-vector<std::shared_ptr<Note>> Repository::findNotes(const QString& query)
+Repository::ResultSetPtr Repository::findNotes(const QString& query)
 {
-	vector<std::shared_ptr<Note>> result;
-	result.push_back(std::shared_ptr<Note>(new Note(1, 11, 22, "first note")));
-	result.push_back(std::shared_ptr<Note>(new Note(2, 11, 22, "sec note")));
-	result.push_back(std::shared_ptr<Note>(new Note(3, 11, 22, "third note")));
-	//result.push_back(Note(2, 11, 22, "sec note"));
-	//result.push_back(Note(3, 11, 22, "third note"));
+	ResultSetPtr result(new ResultSet);
+	result->push_back(Note(2, 11, 22, "sec note " + query));
+	result->push_back(Note(3, 11, 22, "third note " + query));
+	return result;
+	sqlite3_stmt* stmt;
+	qDebug()<<sqlite3_prepare_v2(
+		this->database,
+		"SELECT n.id, n.created_at AS createdAt, n.updated_at AS updatedAt, nc.content, GROUP_CONCAT(t.tag_id) AS tags "
+		"FROM note n INNER JOIN note_content nc ON n.id = nc.rowid LEFT OUTER JOIN tagging t ON n.id = t.note_id "
+		"WHERE nc.content LIKE :content GROUP BY n.id",
+		-1,
+		&stmt,
+		NULL
+	);
+	QString wildcard = "%" + query + "%";
+	qDebug() << wildcard;
+	sqlite3_bind_text(stmt, 1, wildcard.toUtf8().constData(), -1, NULL);
+	int aa = sqlite3_step(stmt);
+	qDebug() << aa;
+	if (aa == SQLITE_ROW) {
+		int id = sqlite3_column_int(stmt, 0);
+		qDebug() << id;
+		int createdAt = sqlite3_column_int(stmt, 1);
+		int updatedAt = sqlite3_column_int(stmt, 2);
+		QString content((char*)sqlite3_column_text(stmt, 3));
+		result->push_back(Note(id, createdAt, updatedAt, content));
+	}
+	sqlite3_finalize(stmt);
 	return result;
 }
 

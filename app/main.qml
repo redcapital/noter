@@ -63,6 +63,7 @@ ApplicationWindow {
 		columns: 2
 		rows: 2
 		anchors.centerIn: parent
+		visible: false
 
 		Label {
 			text: qsTr('Welcome to Noter!')
@@ -82,22 +83,89 @@ ApplicationWindow {
 
 	SplitView {
 		id: mainLayout
-		visible: false
+		visible: true
 		anchors.fill: parent
 
 		Item {
 			Layout.minimumWidth: 230
 			Layout.maximumWidth: parent.width * 0.4
 
+			Timer {
+				interval: 200
+				id: searchTimer
+				onTriggered: {
+					noteListModel.query(searchField.text)
+				}
+			}
+
+			TextField {
+				id: searchField
+				anchors.margins: 10
+				anchors.top: parent.top
+				anchors.left: parent.left
+				anchors.right: parent.right
+
+				Keys.onPressed: {
+					searchTimer.restart()
+				}
+			}
+
 			ListView {
-				anchors.fill: parent
+				id: noteListView
+				anchors.topMargin: 10
+				anchors.bottomMargin: 10
+				anchors.top: searchField.bottom
+				anchors.left: parent.left
+				anchors.right: parent.right
+				anchors.bottom: parent.bottom
+				boundsBehavior: Flickable.StopAtBounds
 				model: noteListModel
-				delegate: Text { text: display }
+				delegate: Rectangle {
+					width: parent.width
+					height: noteContent.height + 5
+					color: ListView.isCurrentItem ? 'lightsteelblue' : 'transparent'
+
+					Column {
+						id: noteContent
+						anchors.left: parent.left
+						anchors.right: parent.right
+						anchors.leftMargin: 10
+						anchors.rightMargin: 10
+						spacing: 5
+						Text {
+							elide: Text.ElideRight
+							width: parent.width
+							text: title
+							font.weight: Font.DemiBold
+						}
+						Text {
+							elide: Text.ElideRight
+							width: parent.width
+							text: updatedAt
+							font.pointSize: 12
+							color: '#555'
+						}
+					}
+					MouseArea {
+						anchors.fill: parent
+						onClicked: {
+							noteListView.currentIndex = index
+						}
+					}
+				}
+
+				onCurrentIndexChanged: {
+					editor.text = model.get(currentIndex)
+				}
 			}
 		}
 
-		Rectangle {
-			color: "#b56868"
+		TextArea {
+			id: editor
+
+			onTextChanged: {
+				console.log('asf')
+			}
 		}
 	}
 }

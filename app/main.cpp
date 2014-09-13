@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 	QQmlApplicationEngine engine;
 	engine.rootContext()->setContextProperty("repository", &repoProxy);
 	engine.rootContext()->setContextProperty("noteListModel", &noteListModel);
-	noteListModel.query("bla");
+	// noteListModel.query("First");
 	engine.load(QUrl(QStringLiteral("qrc:///main.qml")));
 
 	return app.exec();

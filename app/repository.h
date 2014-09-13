@@ -17,8 +17,10 @@ private:
 	bool checkSqliteError(int error);
 
 public:
+	typedef std::vector<Note> ResultSet;
+	typedef std::unique_ptr<ResultSet> ResultSetPtr;
 	bool connect(QString filepath, bool isExisting);
-	std::vector<std::shared_ptr<Note>> findNotes(const QString& query);
+	ResultSetPtr findNotes(const QString& query);
 	QString getLastError();
 	virtual ~Repository();
 };

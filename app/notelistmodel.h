@@ -10,14 +10,20 @@ class NoteListModel : public QAbstractListModel {
 	Q_OBJECT
 private:
 	Repository* repository;
-	std::vector<std::shared_ptr<Note>> notes;
+	Repository::ResultSetPtr results;
 
 public:
-	//NoteListModel() {}
+	enum Role {
+		TITLE = 1,
+		UPDATED = 2
+	};
+
 	NoteListModel(Repository* repository) : repository(repository) {}
-	int rowCount(const QModelIndex &parent) const { return this->notes.size(); }
+	int rowCount(const QModelIndex &parent) const { return this->results ? this->results->size() : 0; }
 	QVariant data(const QModelIndex &index, int role) const;
-	void query(const QString& query);
+	QHash<int, QByteArray> roleNames() const;
+	Q_INVOKABLE void query(const QString& query);
+	Q_INVOKABLE QVariant get(int index) const;
 };
 
 #endif // NOTELISTMODEL_H

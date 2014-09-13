@@ -15,6 +15,7 @@ public:
 	unsigned int getId() const { return this->id; }
 	unsigned int getCreatedAt() const { return this->createdAt; }
 	unsigned int getUpdatedAt() const { return this->updatedAt; }
+	QString getContent() const { return this->content; }
 	QString getTitle() const;
 };
 

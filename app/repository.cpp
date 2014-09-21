@@ -1,11 +1,13 @@
 #include <cstdio>
+#include <cassert>
+#include <ctime>
 #include <QUrl>
 #include "repository.h"
 #include <QDebug>
 
 using namespace std;
 
-QString Repository::getLastError() {
+QString Repository::getLastError() const {
 	return this->lastError;
 }
 
@@ -18,6 +20,7 @@ bool Repository::checkSqliteError(int error) {
 }
 
 bool Repository::createSchema() {
+	qDebug() << "Creating db schema";
 	const char statements[] =
 		"CREATE TABLE config (key TEXT PRIMARY KEY, value TEXT);"
 
@@ -82,17 +85,19 @@ bool Repository::validateSchema() {
 	return ok;
 }
 
-bool Repository::connect(QString filepath, bool isExisting) {
+bool Repository::connect(QString filepath, bool isExisting)
+{
+	this->disconnect();
 	this->lastError.clear();
-	const char* localPath;
+	QByteArray localPath;
 	if (filepath.startsWith("file:")) {
-		localPath = QUrl(filepath).toLocalFile().toUtf8().constData();
+		localPath = QUrl(filepath).toLocalFile().toUtf8();
 	} else {
-		localPath = filepath.toUtf8().constData();
+		localPath = filepath.toUtf8();
 	}
 	if (!isExisting) {
 		// Truncate file if creating
-		FILE *handle = fopen(localPath, "w");
+		FILE *handle = fopen(localPath.constData(), "w");
 		if (handle == nullptr) {
 			this->lastError = "Can't open the file";
 			return false;
@@ -100,7 +105,7 @@ bool Repository::connect(QString filepath, bool isExisting) {
 		fclose(handle);
 	}
 
-	int error = sqlite3_open(localPath, &this->database);
+	int error = sqlite3_open_v2(localPath.constData(), &this->database, SQLITE_OPEN_READWRITE, NULL);
 	if (!this->checkSqliteError(error)) {
 		return false;
 	}
@@ -120,39 +125,122 @@ bool Repository::connect(QString filepath, bool isExisting) {
 
 Repository::ResultSetPtr Repository::findNotes(const QString& query)
 {
+	assert(this->database);
 	ResultSetPtr result(new ResultSet);
-	result->push_back(Note(2, 11, 22, "sec note " + query));
-	result->push_back(Note(3, 11, 22, "third note " + query));
-	return result;
 	sqlite3_stmt* stmt;
-	qDebug()<<sqlite3_prepare_v2(
+	sqlite3_prepare_v2(
 		this->database,
 		"SELECT n.id, n.created_at AS createdAt, n.updated_at AS updatedAt, nc.content, GROUP_CONCAT(t.tag_id) AS tags "
 		"FROM note n INNER JOIN note_content nc ON n.id = nc.rowid LEFT OUTER JOIN tagging t ON n.id = t.note_id "
-		"WHERE nc.content LIKE :content GROUP BY n.id",
+		"WHERE nc.content LIKE :content GROUP BY n.id "
+		"ORDER BY n.updated_at DESC",
 		-1,
 		&stmt,
 		NULL
 	);
-	QString wildcard = "%" + query + "%";
-	qDebug() << wildcard;
-	sqlite3_bind_text(stmt, 1, wildcard.toUtf8().constData(), -1, NULL);
-	int aa = sqlite3_step(stmt);
-	qDebug() << aa;
-	if (aa == SQLITE_ROW) {
+	QByteArray buffer = query.toUtf8();
+	buffer.insert(0, '%');
+	buffer.append('%');
+	sqlite3_bind_text(stmt, 1, buffer.constData(), -1, NULL);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
 		int id = sqlite3_column_int(stmt, 0);
-		qDebug() << id;
 		int createdAt = sqlite3_column_int(stmt, 1);
 		int updatedAt = sqlite3_column_int(stmt, 2);
 		QString content((char*)sqlite3_column_text(stmt, 3));
-		result->push_back(Note(id, createdAt, updatedAt, content));
+		result->push_back(make_shared<Note>(id, createdAt, updatedAt, content));
 	}
 	sqlite3_finalize(stmt);
 	return result;
 }
 
-Repository::~Repository() {
-	if (this->database != nullptr) {
-		sqlite3_close(this->database);
+void Repository::disconnect()
+{
+	sqlite3_close(this->database);
+	this->database = nullptr;
+}
+
+Repository::~Repository()
+{
+	this->disconnect();
+}
+
+bool Repository::updateNote(Note *note)
+{
+	if (this->database == nullptr) {
+		return false;
 	}
+	if (!note->isDirty()) {
+		return true;
+	}
+	time_t now = time(nullptr);
+	sqlite3_exec(this->database, "BEGIN", NULL, NULL, NULL);
+	sqlite3_stmt* stmt;
+	sqlite3_prepare_v2(
+		this->database,
+		"UPDATE note_content SET content = :content WHERE rowid = :id",
+		-1,
+		&stmt,
+		NULL
+	);
+	sqlite3_bind_text(stmt, 1, note->getContent().toUtf8().constData(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int(stmt, 2, note->getId());
+	sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	sqlite3_prepare_v2(
+		this->database,
+		"UPDATE note SET updated_at = :updatedAt WHERE id = :id",
+		-1,
+		&stmt,
+		NULL
+	);
+	sqlite3_bind_int(stmt, 1, now);
+	sqlite3_bind_int(stmt, 2, note->getId());
+	sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	sqlite3_exec(this->database, "COMMIT", NULL, NULL, NULL);
+	note->setUpdatedAt(now);
+	note->resetDirty();
+	emit noteUpdated(note);
+	return true;
+}
+
+bool Repository::createNote()
+{
+	sqlite3_stmt* stmt;
+	sqlite3_prepare_v2(
+		this->database,
+		"INSERT INTO note (created_at, updated_at) VALUES (:createdAt, :updatedAt)",
+		-1,
+		&stmt,
+		NULL
+	);
+	time_t now = time(nullptr);
+	sqlite3_bind_int(stmt, 1, now);
+	sqlite3_bind_int(stmt, 2, now);
+	sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+
+	int id = sqlite3_last_insert_rowid(this->database);
+	auto note = make_shared<Note>(id, now, now, "");
+	emit noteCreated(note);
+	return true;
+}
+
+bool Repository::deleteNote(Note *note)
+{
+	sqlite3_stmt* stmt;
+	sqlite3_prepare_v2(
+		this->database,
+		"DELETE FROM note WHERE id = :id",
+		-1,
+		&stmt,
+		NULL
+	);
+	sqlite3_bind_int(stmt, 1, note->getId());
+	sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+
+	emit noteDeleted(note);
+	return true;
 }

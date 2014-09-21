@@ -17,16 +17,18 @@ QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.7
 HEADERS += \
 	repository.h \
 	exception.h \
-    repositoryproxy.h \
 		notelistmodel.h \
-    note.h
+    note.h \
+    app.h \
+    qmlengine.h
 
 SOURCES += \
 	repository.cpp \
 	main.cpp \
-    repositoryproxy.cpp \
     notelistmodel.cpp \
-    note.cpp
+    note.cpp \
+    app.cpp \
+    qmlengine.cpp
 
 RESOURCES += qml.qrc
 

@@ -3,6 +3,7 @@ import QtQuick.Controls 1.2
 import QtQuick.Layouts 1.1
 import QtQuick.Dialogs 1.2
 import QtQuick.Controls.Styles 1.2
+import Qt.labs.settings 1.0
 import com.github.galymzhan 0.1
 
 ApplicationWindow {
@@ -11,17 +12,28 @@ ApplicationWindow {
 	width: 800
 	height: 600
 
+	Settings {
+		id: settings
+		property string lastDatabase
+	}
+
 	Component.onCompleted: {
+		if (!settings.lastDatabase || !mainWindow.createOrOpenDatabase(settings.lastDatabase, true)) {
+			startupLayout.visible = true
+		}
 		//mainWindow.createOrOpenDatabase("file:///Users/galym/projects/opa.ndb", true)
 	}
 
 	function createOrOpenDatabase(filepath, isOpening) {
 		if (repository.connect(filepath, isOpening)) {
+			settings.lastDatabase = filepath
 			startupLayout.visible = false
 			mainLayout.init()
-		} else {
-			showError(repository.getLastError())
+			return true
 		}
+		settings.lastDatabase = ''
+		showError(repository.getLastError())
+		return false
 	}
 
 	function showError(message) {
@@ -67,6 +79,7 @@ ApplicationWindow {
 
 	GridLayout {
 		id: startupLayout
+		visible: false
 		columns: 2
 		rows: 2
 		anchors.centerIn: parent

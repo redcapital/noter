@@ -1,5 +1,10 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
+        <file>DatabaseStore.qml</file>
+        <file>DatabaseActions.qml</file>
+        <file>NoteStore.qml</file>
+        <file>NoteActions.qml</file>
+        <file>Flux.js</file>
     </qresource>
 </RCC>

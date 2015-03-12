@@ -20,7 +20,6 @@ bool Repository::checkSqliteError(int error) {
 }
 
 bool Repository::createSchema() {
-	qDebug() << "Creating db schema";
 	const char statements[] =
 		"CREATE TABLE config (key TEXT PRIMARY KEY, value TEXT);"
 
@@ -123,7 +122,7 @@ bool Repository::connect(QString filepath, bool isExisting)
 	return true;
 }
 
-Repository::ResultSetPtr Repository::findNotes(const QString& query)
+Repository::ResultSetPtr Repository::search(const QString& query)
 {
 	assert(this->database);
 	ResultSetPtr result(new ResultSet);
@@ -165,7 +164,7 @@ Repository::~Repository()
 	this->disconnect();
 }
 
-bool Repository::updateNote(Note *note)
+bool Repository::persistNote(Note *note)
 {
 	if (this->database == nullptr) {
 		return false;
@@ -201,11 +200,10 @@ bool Repository::updateNote(Note *note)
 	sqlite3_exec(this->database, "COMMIT", NULL, NULL, NULL);
 	note->setUpdatedAt(now);
 	note->resetDirty();
-	emit noteUpdated(note);
 	return true;
 }
 
-bool Repository::createNote()
+Repository::NotePtr Repository::createNote()
 {
 	sqlite3_stmt* stmt;
 	sqlite3_prepare_v2(
@@ -223,8 +221,7 @@ bool Repository::createNote()
 
 	int id = sqlite3_last_insert_rowid(this->database);
 	auto note = make_shared<Note>(id, now, now, "");
-	emit noteCreated(note);
-	return true;
+	return note;
 }
 
 bool Repository::deleteNote(Note *note)
@@ -240,7 +237,5 @@ bool Repository::deleteNote(Note *note)
 	sqlite3_bind_int(stmt, 1, note->getId());
 	sqlite3_step(stmt);
 	sqlite3_finalize(stmt);
-
-	emit noteDeleted(note);
 	return true;
 }

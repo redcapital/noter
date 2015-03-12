@@ -13,7 +13,7 @@ private:
 
 public:
 	Q_PROPERTY(unsigned int id READ getId)
-	Q_PROPERTY(QString content READ getContent WRITE setContent)
+	Q_PROPERTY(QString content READ getContent)
 	Q_PROPERTY(QString title READ getTitle)
 	Q_PROPERTY(unsigned int createdAt READ getCreatedAt)
 	Q_PROPERTY(unsigned int updatedAt READ getUpdatedAt)

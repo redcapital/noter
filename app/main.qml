@@ -5,6 +5,7 @@ import QtQuick.Dialogs 1.2
 import QtQuick.Controls.Styles 1.2
 import Qt.labs.settings 1.0
 import com.github.galymzhan 0.1
+import 'Flux.js' as Flux
 
 ApplicationWindow {
 	id: mainWindow
@@ -12,28 +13,52 @@ ApplicationWindow {
 	width: 800
 	height: 600
 
+	property var dispatcher
+
 	Settings {
 		id: settings
 		property string lastDatabase
 	}
 
-	Component.onCompleted: {
-		if (!settings.lastDatabase || !mainWindow.createOrOpenDatabase(settings.lastDatabase, true)) {
-			startupLayout.visible = true
+	DatabaseStore {
+		id: databaseStore
+		settings: settings
+
+		onConnected: {
+			mainLayout.init()
 		}
-		//mainWindow.createOrOpenDatabase("file:///Users/galym/projects/opa.ndb", true)
+
+		onError: {
+			showError(message)
+			if (!startupLayout.visible && !mainLayout.visible) {
+				startupLayout.visible = true
+			}
+		}
 	}
 
-	function createOrOpenDatabase(filepath, isOpening) {
-		if (repository.connect(filepath, isOpening)) {
-			settings.lastDatabase = filepath
-			startupLayout.visible = false
-			mainLayout.init()
-			return true
+	NoteStore {
+		id: noteStore
+	}
+
+	DatabaseActions {
+		id: databaseActions
+		dispatcher: mainWindow.dispatcher
+	}
+
+	NoteActions {
+		id: noteActions
+		dispatcher: mainWindow.dispatcher
+	}
+
+	Component.onCompleted: {
+		dispatcher = new Flux.Dispatcher()
+		databaseStore.init(dispatcher)
+		noteStore.init(dispatcher)
+		if (settings.lastDatabase) {
+			databaseActions.connectDatabase(settings.lastDatabase, true)
+		} else {
+			startupLayout.visible = true
 		}
-		settings.lastDatabase = ''
-		showError(repository.getLastError())
-		return false
 	}
 
 	function showError(message) {
@@ -53,7 +78,7 @@ ApplicationWindow {
 		selectMultiple: false
 		selectExisting: true
 		nameFilters: ['Noter database (*.ndb)']
-		onAccepted: createOrOpenDatabase(this.fileUrl, true)
+		onAccepted: databaseActions.connectDatabase(this.fileUrl, true)
 	}
 
 	FileDialog {
@@ -62,7 +87,7 @@ ApplicationWindow {
 		selectMultiple: false
 		selectExisting: false
 		nameFilters: ['Noter database (*.ndb)']
-		onAccepted: createOrOpenDatabase(this.fileUrl, false)
+		onAccepted: databaseActions.connectDatabase(this.fileUrl, false)
 	}
 
 	Action {
@@ -104,70 +129,19 @@ ApplicationWindow {
 		id: mainLayout
 		visible: false
 		anchors.fill: parent
-		property Note currentNote
-
-		Timer {
-			interval: 200
-			id: saveTimer
-			onTriggered: mainLayout.saveNote()
-		}
 
 		function init() {
-			noteListModel.query('')
-			noteListView.currentIndex = -1
-			mainLayout.currentNote = null
-			editor.text = ''
 			mainLayout.visible = true
-		}
-
-		function loadNote(note) {
-			console.log('loaded', note.id)
-			saveTimer.stop()
-			saveNote()
-			mainLayout.currentNote = null
-			editor.text = note.content
-			mainLayout.currentNote = note
-		}
-
-		function unloadNote() {
-			saveTimer.stop()
-			saveNote()
-			noteListView.currentIndex = -1
-			mainLayout.currentNote = null
-			editor.text = ''
-		}
-
-		function saveNote(fromtimer) {
-			if (mainLayout.currentNote) {
-				console.log('saving', mainLayout.currentNote.id)
-				repository.updateNote(mainLayout.currentNote)
-			}
-		}
-
-		function createNote() {
-			if (repository.createNote()) {
-				unloadNote()
-				noteListView.currentIndex = 0
-				editor.focus = true
-			}
-		}
-
-		function deleteNote() {
-			saveTimer.stop()
-			noteListView.currentIndex = -1
-			if (mainLayout.currentNote) {
-				repository.deleteNote(mainLayout.currentNote)
-			}
-			mainLayout.currentNote = null
-			editor.text = ''
+			noteActions.search('')
 		}
 
 		function formatDateTime(timestamp) {
 			return new Date(timestamp * 1000).toLocaleString()
 		}
 
-		function formatMoment(timestamp) {
-			var diff = Date.now() / 1000 - timestamp
+		function formatMoment(timestamp, now) {
+			// now is calculated once per 10-seconds, so it may be a bit behind
+			var diff = Math.max(0, now - timestamp)
 			if (diff < 60) return 'moments ago';
 			if (diff < 120) return '1 minute ago';
 			if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago'
@@ -188,11 +162,10 @@ ApplicationWindow {
 			Layout.maximumWidth: parent.width * 0.4
 
 			Timer {
-				interval: 200
+				interval: 100
 				id: searchTimer
 				onTriggered: {
-					mainLayout.unloadNote()
-					noteListModel.query(searchField.text)
+					noteActions.search(searchField.text)
 				}
 			}
 
@@ -226,7 +199,22 @@ ApplicationWindow {
 					id: noteListView
 					clip: true
 					boundsBehavior: Flickable.StopAtBounds
-					model: noteListModel
+					model: noteStore.model
+
+					Connections {
+						target: noteStore
+						onIndexChanged: noteListView.currentIndex = newIndex
+					}
+
+					Timer {
+						id: updatedTimer
+						property int timestamp
+						interval: 10000
+						running: true
+						repeat: true
+						triggeredOnStart: true
+						onTriggered: timestamp = Date.now() / 1000
+					}
 
 					delegate: Rectangle {
 						width: parent.width
@@ -248,9 +236,10 @@ ApplicationWindow {
 								font.italic: title.length === 0
 							}
 							Label {
+								id: updatedAtLabel
 								elide: Text.ElideRight
 								width: parent.width
-								text: mainLayout.formatMoment(updatedAt)
+								text: mainLayout.formatMoment(updatedAt, updatedTimer.timestamp)
 								font.pointSize: 12
 								color: '#555'
 							}
@@ -259,14 +248,8 @@ ApplicationWindow {
 						MouseArea {
 							anchors.fill: parent
 							onClicked: {
-								noteListView.currentIndex = index
+								noteActions.select(index)
 							}
-						}
-					}
-
-					onCurrentIndexChanged: {
-						if (currentIndex >= 0) {
-							mainLayout.loadNote(model.get(currentIndex))
 						}
 					}
 				}
@@ -281,28 +264,28 @@ ApplicationWindow {
 				Layout.fillWidth: true
 
 				MessageDialog {
-					id: confirmationDialog
-					title: 'Confirmation'
+					id: deleteConfirmationDialog
+					title: 'You are about to delete a note'
 					text: 'Are you sure?'
 					icon: StandardIcon.Question
 					standardButtons: StandardButton.Yes | StandardButton.No
-					onYes: mainLayout.deleteNote()
+					onYes: noteActions.deleteNote()
 				}
 
 				Button {
 					text: 'Create'
-					onClicked: mainLayout.createNote()
+					onClicked: noteActions.create()
 				}
 
 				Label {
-					enabled: mainLayout.currentNote
-					text: mainLayout.currentNote ? mainLayout.formatDateTime(mainLayout.currentNote.createdAt) : ''
+					enabled: noteStore.note
+					text: noteStore.note ? mainLayout.formatDateTime(noteStore.note.createdAt) : ''
 				}
 
 				Button {
 					text: 'Delete'
-					enabled: mainLayout.currentNote
-					onClicked: confirmationDialog.open()
+					enabled: noteStore.note
+					onClicked: deleteConfirmationDialog.open()
 				}
 
 				Item {
@@ -335,18 +318,24 @@ ApplicationWindow {
 				id: editor
 				Layout.fillWidth: true
 				Layout.fillHeight: true
+				text: noteStore.note ? noteStore.note.content : '<select a note>'
 
-				onTextChanged: {
-					if (mainLayout.currentNote) {
-						saveTimer.restart()
-					}
+				Timer {
+					interval: 200
+					id: persistTimer
+					onTriggered: if (noteStore.note) noteActions.persist()
 				}
 
-				Binding {
-					target: mainLayout.currentNote
-					property: 'content'
-					value: editor.text
-					when: mainLayout.currentNote
+				Connections {
+					target: noteStore
+					onNoteChanged: persistTimer.stop()
+				}
+
+				onTextChanged: {
+					if (noteStore.note) {
+						noteActions.update(text)
+						persistTimer.restart()
+					}
 				}
 			}
 		}

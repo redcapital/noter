@@ -19,17 +19,16 @@ public:
 		UPDATED = 2
 	};
 
-	NoteListModel(Repository& repository);
+	NoteListModel(Repository& repository) : repository(repository) {}
 	int rowCount(const QModelIndex &parent) const { return this->results ? this->results->size() : 0; }
 	QVariant data(const QModelIndex &index, int role) const;
 	QHash<int, QByteArray> roleNames() const;
-	Q_INVOKABLE void query(const QString& query);
-	Q_INVOKABLE Note* get(int index) const;
 
-public slots:
-	void onNoteCreated(Repository::NotePtr note);
-	void onNoteUpdated(Note* note);
-	void onNoteDeleted(Note* note);
+	Q_INVOKABLE void create();
+	Q_INVOKABLE void update(Note* note, const QString& content);
+	Q_INVOKABLE void deleteNote(Note* note);
+	Q_INVOKABLE void search(const QString& query);
+	Q_INVOKABLE Note* get(unsigned int index) const;
 };
 
 #endif // NOTELISTMODEL_H

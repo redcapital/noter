@@ -25,16 +25,11 @@ public:
 	void disconnect();
 	Q_INVOKABLE bool connect(QString filepath, bool isExisting);
 	Q_INVOKABLE QString getLastError() const;
-	Q_INVOKABLE bool updateNote(Note* note);
-	Q_INVOKABLE bool createNote();
+	Q_INVOKABLE bool persistNote(Note* note);
 	Q_INVOKABLE bool deleteNote(Note* note);
-	ResultSetPtr findNotes(const QString& query);
+	ResultSetPtr search(const QString& query);
+	NotePtr createNote();
 	virtual ~Repository();
-
-signals:
-	void noteCreated(NotePtr note);
-	void noteUpdated(Note* note);
-	void noteDeleted(Note* note);
 };
 
 #endif // REPOSITORY_H

@@ -6,13 +6,6 @@
 
 using namespace std;
 
-NoteListModel::NoteListModel(Repository& repository) : repository(repository)
-{
-	connect(&repository, &Repository::noteCreated, this, &NoteListModel::onNoteCreated);
-	connect(&repository, &Repository::noteUpdated, this, &NoteListModel::onNoteUpdated);
-	connect(&repository, &Repository::noteDeleted, this, &NoteListModel::onNoteDeleted);
-}
-
 QVariant NoteListModel::data(const QModelIndex &index, int role) const
 {
 	if (!this->results || index.row() < 0 || index.row() >= this->results->size()) {
@@ -27,24 +20,6 @@ QVariant NoteListModel::data(const QModelIndex &index, int role) const
 	return QVariant();
 }
 
-Note* NoteListModel::get(int index) const
-{
-	if (!this->results || index < 0 || index >= this->results->size()) {
-		return nullptr;
-	}
-	Note* note = this->results->at(index).get();
-	assert(note);
-	App::instance()->getQmlEngine().setObjectOwnership(note, QQmlEngine::CppOwnership);
-	return note;
-}
-
-void NoteListModel::query(const QString &query)
-{
-	beginResetModel();
-	this->results = this->repository.findNotes(query);
-	endResetModel();
-}
-
 QHash<int, QByteArray> NoteListModel::roleNames() const
 {
 	QHash<int, QByteArray> roles;
@@ -53,16 +28,52 @@ QHash<int, QByteArray> NoteListModel::roleNames() const
 	return roles;
 }
 
-void NoteListModel::onNoteUpdated(Note* note)
+Note* NoteListModel::get(unsigned int index) const
+{
+	if (!this->results || index >= this->results->size()) {
+		return nullptr;
+	}
+	Note* note = this->results->at(index).get();
+	assert(note);
+	App::instance()->getQmlEngine().setObjectOwnership(note, QQmlEngine::CppOwnership);
+	return note;
+}
+
+void NoteListModel::search(const QString &query)
+{
+	beginResetModel();
+	this->results = this->repository.search(query);
+	endResetModel();
+}
+
+void NoteListModel::create()
+{
+	if (!this->results) {
+		this->results.reset(new Repository::ResultSet);
+	}
+	Repository::NotePtr note = this->repository.createNote();
+	beginInsertRows(QModelIndex(), 0, 0);
+	this->results->insert(this->results->begin(), note);
+	endInsertRows();
+}
+
+void NoteListModel::update(Note* note, const QString& content)
 {
 	if (!this->results) {
 		return;
 	}
-
+	if (note->getContent() == content) {
+		return;
+	}
+	note->setContent(content);
+	time_t now = time(nullptr);
+	note->setUpdatedAt(now);
 	int index = this->findIndex(note);
 	if (index > 0) {
 		beginMoveRows(QModelIndex(), index, index, QModelIndex(), 0);
-		swap(this->results->at(index), this->results->at(0));
+		Repository::NotePtr updated = this->results->at(index);
+		this->results->erase(this->results->begin() + index);
+		this->results->insert(this->results->begin(), updated);
 		endMoveRows();
 		index = 0;
 	}
@@ -73,21 +84,12 @@ void NoteListModel::onNoteUpdated(Note* note)
 	}
 }
 
-void NoteListModel::onNoteCreated(Repository::NotePtr note)
-{
-	if (!this->results) {
-		this->results.reset(new Repository::ResultSet);
-	}
-	beginInsertRows(QModelIndex(), 0, 0);
-	this->results->insert(this->results->begin(), note);
-	endInsertRows();
-}
-
-void NoteListModel::onNoteDeleted(Note* note)
+void NoteListModel::deleteNote(Note* note)
 {
 	if (!this->results) {
 		return;
 	}
+	this->repository.deleteNote(note);
 	int index = this->findIndex(note);
 	if (index >= 0) {
 		beginRemoveRows(QModelIndex(), index, index);

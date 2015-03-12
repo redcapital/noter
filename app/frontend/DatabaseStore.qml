@@ -17,13 +17,13 @@ QtObject {
 			switch (action.type) {
 				case Actions.CONNECT_DATABASE:
 					if (repository.connect(action.filepath, action.isOpening)) {
-						settings.lastDatabase = action.filepath;
-						connected();
+						settings.lastDatabase = action.filepath
+						connected()
 					} else {
-						settings.lastDatabase = '';
-						error(repository.getLastError());
+						settings.lastDatabase = ''
+						error(repository.getLastError())
 					}
-					break;
+					break
 			}
 		});
 	}

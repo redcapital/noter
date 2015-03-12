@@ -20,6 +20,11 @@ ApplicationWindow {
 		property string lastDatabase
 	}
 
+	FontLoader {
+		id: fontUbuntu
+		source: 'UbuntuMono-R.ttf'
+	}
+
 	DatabaseStore {
 		id: databaseStore
 		settings: settings
@@ -142,10 +147,10 @@ ApplicationWindow {
 		function formatMoment(timestamp, now) {
 			// now is calculated once per 10-seconds, so it may be a bit behind
 			var diff = Math.max(0, now - timestamp)
-			if (diff < 60) return 'moments ago';
-			if (diff < 120) return '1 minute ago';
+			if (diff < 60) return 'moments ago'
+			if (diff < 120) return '1 minute ago'
 			if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago'
-			if (diff < 7200) return '1 hour ago';
+			if (diff < 7200) return '1 hour ago'
 			if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago'
 			var days = Math.floor(diff / 86400)
 			if (days === 1) return 'Yesterday'
@@ -318,7 +323,10 @@ ApplicationWindow {
 				id: editor
 				Layout.fillWidth: true
 				Layout.fillHeight: true
+				font.family: fontUbuntu.name
+				font.pointSize: 14
 				text: noteStore.note ? noteStore.note.content : '<select a note>'
+				enabled: noteStore.note
 
 				Timer {
 					interval: 200

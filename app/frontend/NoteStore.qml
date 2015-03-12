@@ -18,39 +18,39 @@ QtObject {
 			switch (action.type) {
 				case Actions.SEARCH_NOTE:
 					if (note) {
-						repository.persistNote(note);
+						repository.persistNote(note)
 					}
-					noteListModel.search(action.query);
-					break;
+					noteListModel.search(action.query)
+					break
 
 				case Actions.SELECT_NOTE:
 					if (note) {
-						repository.persistNote(note);
+						repository.persistNote(note)
 					}
 					note = noteListModel.get(action.index)
 					indexChanged(action.index)
-					break;
+					break
 
 				case Actions.CREATE_NOTE:
 					if (note) {
-						repository.persistNote(note);
+						repository.persistNote(note)
 					}
-					noteListModel.create();
+					noteListModel.create()
 					note = noteListModel.get(0)
 					indexChanged(0)
-					break;
+					break
 
 				case Actions.UPDATE_NOTE:
 					if (note) {
-						noteListModel.update(note, action.content);
+						noteListModel.update(note, action.content)
 					}
-					break;
+					break
 
 				case Actions.PERSIST_NOTE:
 					if (note) {
-						repository.persistNote(note);
+						repository.persistNote(note)
 					}
-					break;
+					break
 
 				case Actions.DELETE_NOTE:
 					if (note) {
@@ -58,8 +58,8 @@ QtObject {
 						note = null
 						indexChanged(-1)
 					}
-					break;
+					break
 			}
-		});
+		})
 	}
 }

@@ -6,5 +6,6 @@
         <file>NoteStore.qml</file>
         <file>NoteActions.qml</file>
         <file>Flux.js</file>
+        <file>UbuntuMono-R.ttf</file>
     </qresource>
 </RCC>

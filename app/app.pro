@@ -16,22 +16,23 @@ QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.7
 
 HEADERS += \
 	repository.h \
-    note.h \
-    app.h \
-    qmlengine.h \
-		notelistmodel.h \
-    actions.h
+	note.h \
+	app.h \
+	qmlengine.h \
+	notelistmodel.h \
+	actions.h
 
 SOURCES += \
 	repository.cpp \
 	main.cpp \
-    note.cpp \
-		notelistmodel.cpp \
-    app.cpp \
-    qmlengine.cpp
+	note.cpp \
+	notelistmodel.cpp \
+	app.cpp \
+	qmlengine.cpp
 
 RESOURCES += \
-    frontend/resources.qrc
+	frontend/resources.qrc \
+	../imports.qrc
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
-QML_IMPORT_PATH =
+QML_IMPORT_PATH = ../qml-material/modules

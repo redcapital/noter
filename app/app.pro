@@ -3,6 +3,8 @@ TEMPLATE = app
 LIBS += ../sqlite/libsqlite.a
 TARGET = ../noter
 
+INCLUDEPATH += ../pmh ../sqlite
+
 QT += qml quick
 
 LIBS += -stdlib=libc++
@@ -20,7 +22,11 @@ HEADERS += \
 	app.h \
 	qmlengine.h \
 	notelistmodel.h \
-	actions.h
+	actions.h \
+	textareabackend.h \
+	highlighter.h \
+	../pmh/pmh_parser.h \
+	../pmh/pmh_definitions.h
 
 SOURCES += \
 	repository.cpp \
@@ -28,7 +34,10 @@ SOURCES += \
 	note.cpp \
 	notelistmodel.cpp \
 	app.cpp \
-	qmlengine.cpp
+	qmlengine.cpp \
+	textareabackend.cpp \
+	highlighter.cpp \
+	../pmh/pmh_parser.c
 
 RESOURCES += \
 	frontend/resources.qrc \
@@ -36,3 +45,4 @@ RESOURCES += \
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
 QML_IMPORT_PATH = ../qml-material/modules
+

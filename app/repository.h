@@ -5,7 +5,7 @@
 #include <vector>
 #include <QObject>
 #include <QString>
-#include "../sqlite/sqlite3.h"
+#include "sqlite3.h"
 #include "note.h"
 
 class Repository : public QObject {

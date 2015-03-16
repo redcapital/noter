@@ -22,8 +22,17 @@ ApplicationWindow {
 	}
 
 	FontLoader {
-		id: fontUbuntu
-		source: 'UbuntuMono-R.ttf'
+		// id: fontUbuntu
+		source: 'fonts/UbuntuMono-R.ttf'
+	}
+	FontLoader {
+		source: 'fonts/UbuntuMono-RI.ttf'
+	}
+	FontLoader {
+		source: 'fonts/UbuntuMono-B.ttf'
+	}
+	FontLoader {
+		source: 'fonts/UbuntuMono-BI.ttf'
 	}
 
 	DatabaseStore {
@@ -255,6 +264,7 @@ ApplicationWindow {
 							anchors.fill: parent
 							onClicked: {
 								noteActions.select(index)
+								editor.focus = true
 							}
 						}
 					}
@@ -324,10 +334,13 @@ ApplicationWindow {
 				id: editor
 				Layout.fillWidth: true
 				Layout.fillHeight: true
-				font.family: fontUbuntu.name
-				font.pointSize: 14
 				text: noteStore.note ? noteStore.note.content : '<select a note>'
+				textMargin: 6
 				enabled: noteStore.note
+
+				Component.onCompleted: {
+					textAreaBackend.setDocument(textDocument)
+				}
 
 				Timer {
 					interval: 200
@@ -345,6 +358,14 @@ ApplicationWindow {
 						noteActions.update(text)
 						persistTimer.restart()
 					}
+				}
+
+				style: TextAreaStyle {
+					backgroundColor: '#263238'
+					textColor: '#f8f8f2'
+					selectedTextColor: '#37474f'
+					font.family: 'Ubuntu Mono'
+					font.pointSize: 14
 				}
 			}
 		}

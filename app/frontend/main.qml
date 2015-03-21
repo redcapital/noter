@@ -6,7 +6,6 @@ import QtQuick.Controls.Styles 1.2
 import Qt.labs.settings 1.0
 import com.github.galymzhan 0.1
 import 'Flux.js' as Flux
-import Material 0.1 as Material
 
 ApplicationWindow {
 	id: mainWindow

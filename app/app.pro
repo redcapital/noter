@@ -40,9 +40,7 @@ SOURCES += \
 	../pmh/pmh_parser.c
 
 RESOURCES += \
-	frontend/resources.qrc \
-	../imports.qrc
+	frontend/resources.qrc
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
-QML_IMPORT_PATH = ../qml-material/modules
-
+QML_IMPORT_PATH =

@@ -22,7 +22,6 @@ HEADERS += \
 	app.h \
 	qmlengine.h \
 	notelistmodel.h \
-	actions.h \
 	textareabackend.h \
 	highlighter.h \
 	../pmh/pmh_parser.h \
@@ -43,4 +42,4 @@ RESOURCES += \
 	frontend/resources.qrc
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
-QML_IMPORT_PATH =
+QML_IMPORT_PATH = frontend/

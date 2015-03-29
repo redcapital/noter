@@ -2,13 +2,34 @@
     <qresource prefix="/">
         <file>main.qml</file>
         <file>DatabaseStore.qml</file>
-        <file>DatabaseActions.qml</file>
         <file>NoteStore.qml</file>
-        <file>NoteActions.qml</file>
         <file>Flux.js</file>
         <file>fonts/UbuntuMono-B.ttf</file>
         <file>fonts/UbuntuMono-BI.ttf</file>
         <file>fonts/UbuntuMono-R.ttf</file>
         <file>fonts/UbuntuMono-RI.ttf</file>
+        <file>fonts/fontawesome-webfont.ttf</file>
+        <file>fonts/Lato-Bold.ttf</file>
+        <file>fonts/Lato-BoldItalic.ttf</file>
+        <file>fonts/Lato-Italic.ttf</file>
+        <file>fonts/Lato-Regular.ttf</file>
+        <file>Awesome.qml</file>
+        <file>Button.qml</file>
+        <file>ButtonStyle.qml</file>
+        <file>qmldir</file>
+        <file>TextField.qml</file>
+        <file>TextFieldStyle.qml</file>
+        <file>Theme.qml</file>
+        <file>IconButtonStyle.qml</file>
+        <file>TextAreaStyle.qml</file>
+        <file>MenuStyle.qml</file>
+        <file>Text.qml</file>
+        <file>Moment.js</file>
+        <file>qmldir</file>
+        <file>StartupPage.qml</file>
+        <file>MainPage.qml</file>
+        <file>Gutter.qml</file>
+        <file>SearchPanel.qml</file>
+        <file>UiStore.qml</file>
     </qresource>
 </RCC>

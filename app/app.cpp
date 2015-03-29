@@ -12,5 +12,6 @@ QGuiApplication(argc, argv)
 	QSettings::setDefaultFormat(QSettings::IniFormat);
 	this->repository.reset(new Repository);
 	this->engine.reset(new QmlEngine);
+	this->engine->addImportPath("qrc:/");
 	this->engine->initialize(*this->repository);
 }

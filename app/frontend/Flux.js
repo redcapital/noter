@@ -1,5 +1,7 @@
 .pragma library
 
+// Dispatcher code is based on Facebook's Flux dispatcher implementation
+
 function Dispatcher() {
 	this.lastId = 1
 	this.callbacks = {}
@@ -64,3 +66,85 @@ Dispatcher.prototype.invokeCallback = function(id) {
 	this.callbacks[id](this.payload)
 	this.isHandled[id] = true
 }
+
+var Actions = Object.freeze({
+	// Database
+	CONNECT_DATABASE: 0,
+
+	// Notes
+	SEARCH_NOTE: 1,
+	SELECT_NOTE: 2,
+	CREATE_NOTE: 3,
+	UPDATE_NOTE: 4,
+	PERSIST_NOTE: 5,
+	DELETE_NOTE: 6,
+
+	// UI related
+	OPEN_SEARCH_PANEL: 7,
+	CLOSE_SEARCH_PANEL: 8
+})
+
+// Export single instance of the dispatcher
+var dispatcher = new Dispatcher()
+
+// Export Actions
+
+var DatabaseActions = Object.freeze({
+	connectDatabase: function(filepath, isOpening) {
+		dispatcher.dispatch({
+			type: Actions.CONNECT_DATABASE,
+			filepath: filepath,
+			isOpening: isOpening
+		})
+	}
+})
+
+var NoteActions = Object.freeze({
+	search: function(query) {
+		dispatcher.dispatch({
+			type: Actions.SEARCH_NOTE,
+			query: query
+		})
+	},
+
+	select: function(index) {
+		dispatcher.dispatch({
+			type: Actions.SELECT_NOTE,
+			index: index
+		})
+	},
+
+	create: function() {
+		dispatcher.dispatch({
+			type: Actions.CREATE_NOTE
+		})
+	},
+
+	update: function(content) {
+		dispatcher.dispatch({
+			type: Actions.UPDATE_NOTE,
+			content: content
+		})
+	},
+
+	persist: function() {
+		dispatcher.dispatch({
+			type: Actions.PERSIST_NOTE
+		})
+	},
+
+	deleteNote: function() {
+		dispatcher.dispatch({
+			type: Actions.DELETE_NOTE
+		})
+	}
+})
+
+var UiActions = Object.freeze({
+	openSearchPanel: function() {
+		dispatcher.dispatch({ type: Actions.OPEN_SEARCH_PANEL })
+	},
+	closeSearchPanel: function() {
+		dispatcher.dispatch({ type: Actions.CLOSE_SEARCH_PANEL })
+	}
+})

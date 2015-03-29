@@ -1,29 +1,29 @@
 import QtQuick 2.0
 import com.github.galymzhan 0.1
+import 'Flux.js' as Flux
 
 QtObject {
 	property var dispatcher
 
 	// Active note (or null if none)
-	property var note: null
+	property Note note: null
 
 	// Model that feeds data to a listview
 	readonly property var model: noteListModel
 
 	signal indexChanged(int newIndex)
 
-	function init(_dispatcher) {
-		dispatcher = _dispatcher
-		var token = dispatcher.register(function(action) {
+	Component.onCompleted: {
+		Flux.dispatcher.register(function(action) {
 			switch (action.type) {
-				case Actions.SEARCH_NOTE:
+				case Flux.Actions.SEARCH_NOTE:
 					if (note) {
 						repository.persistNote(note)
 					}
 					noteListModel.search(action.query)
 					break
 
-				case Actions.SELECT_NOTE:
+				case Flux.Actions.SELECT_NOTE:
 					if (note) {
 						repository.persistNote(note)
 					}
@@ -31,7 +31,7 @@ QtObject {
 					indexChanged(action.index)
 					break
 
-				case Actions.CREATE_NOTE:
+				case Flux.Actions.CREATE_NOTE:
 					if (note) {
 						repository.persistNote(note)
 					}
@@ -40,19 +40,19 @@ QtObject {
 					indexChanged(0)
 					break
 
-				case Actions.UPDATE_NOTE:
+				case Flux.Actions.UPDATE_NOTE:
 					if (note) {
 						noteListModel.update(note, action.content)
 					}
 					break
 
-				case Actions.PERSIST_NOTE:
+				case Flux.Actions.PERSIST_NOTE:
 					if (note) {
 						repository.persistNote(note)
 					}
 					break
 
-				case Actions.DELETE_NOTE:
+				case Flux.Actions.DELETE_NOTE:
 					if (note) {
 						noteListModel.deleteNote(note)
 						note = null

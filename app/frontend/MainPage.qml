@@ -40,6 +40,7 @@ Quick.Item {
 		anchors.bottom: parent.bottom
 		width: 260
 		x: uiStore.searchPanelOpen ? gutter.width : gutter.width - width
+		visible: uiStore.searchPanelOpen
 
 		Quick.Behavior on x {
 			Quick.NumberAnimation { duration: 100; easing.type: Quick.Easing.Linear }

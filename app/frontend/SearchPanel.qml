@@ -41,16 +41,12 @@ Quick.Rectangle {
 
 		model: noteStore.model
 
-		Quick.Connections {
-			target: noteStore
-			onIndexChanged: view.currentIndex = newIndex
-		}
-
 		delegate: Quick.Rectangle {
+			property bool isActive: (noteStore.note && noteStore.note.getId() === id)
 			width: parent.width
 			implicitHeight: 20
 			height: elementDetails.height + 14
-			color: Quick.ListView.isCurrentItem ? Theme.backgroundColor : 'transparent'
+			color: isActive ? Theme.backgroundColor : 'transparent'
 
 			Quick.Column {
 				id: elementDetails
@@ -89,7 +85,7 @@ Quick.Rectangle {
 			Quick.MouseArea {
 				anchors.fill: parent
 				onClicked: {
-					Flux.NoteActions.select(index)
+					Flux.NoteActions.select(id)
 				}
 			}
 		}

@@ -107,10 +107,10 @@ var NoteActions = Object.freeze({
 		})
 	},
 
-	select: function(index) {
+	select: function(id) {
 		dispatcher.dispatch({
 			type: Actions.SELECT_NOTE,
-			index: index
+			id: id
 		})
 	},
 

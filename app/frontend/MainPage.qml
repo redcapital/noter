@@ -64,7 +64,7 @@ Quick.Item {
 			Quick.Text {
 				text: {
 					if (!noteStore.note) return ''
-					var date = new Date(noteStore.note.createdAt * 1000)
+					var date = new Date(noteStore.note.getCreatedAt() * 1000)
 					return date.toLocaleDateString(Qt.locale(), 'dd MMM yyyy, dddd')
 							+ "\n"
 							+ date.toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
@@ -79,6 +79,7 @@ Quick.Item {
 
 			Controls.Button {
 				text: Awesome.fa_trash_o
+				enabled: noteStore.note
 				style: IconButtonStyle {
 					inverted: true
 					textColor: Theme.secondaryColor
@@ -97,7 +98,7 @@ Quick.Item {
 			frameVisible: false
 			textMargin: 0
 			enabled: noteStore.note
-			text: noteStore.note ? noteStore.note.content : '<select a note>'
+			text: noteStore.note ? noteStore.note.getContent() : '<select a note>'
 
 			Quick.Component.onCompleted: {
 				textAreaBackend.setDocument(textDocument)

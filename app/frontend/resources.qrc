@@ -16,7 +16,6 @@
         <file>Awesome.qml</file>
         <file>Button.qml</file>
         <file>ButtonStyle.qml</file>
-        <file>qmldir</file>
         <file>TextField.qml</file>
         <file>TextFieldStyle.qml</file>
         <file>Theme.qml</file>

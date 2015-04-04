@@ -14,12 +14,14 @@ QString Note::getTitle() const
 	return trimmed.mid(0, cutPoint);
 }
 
-void Note::setContent(const QString &content)
+bool Note::setContent(const QString &content)
 {
 	if (this->content != content) {
 		this->dirty = true;
 		this->content = content;
+		return true;
 	}
+	return false;
 }
 
 void Note::setUpdatedAt(unsigned int updatedAt)

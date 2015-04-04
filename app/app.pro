@@ -21,22 +21,22 @@ HEADERS += \
 	note.h \
 	app.h \
 	qmlengine.h \
-	notelistmodel.h \
 	textareabackend.h \
 	highlighter.h \
 	../pmh/pmh_parser.h \
-	../pmh/pmh_definitions.h
+	../pmh/pmh_definitions.h \
+	resultset.h
 
 SOURCES += \
 	repository.cpp \
 	main.cpp \
 	note.cpp \
-	notelistmodel.cpp \
 	app.cpp \
 	qmlengine.cpp \
 	textareabackend.cpp \
 	highlighter.cpp \
-	../pmh/pmh_parser.c
+	../pmh/pmh_parser.c \
+	resultset.cpp
 
 RESOURCES += \
 	frontend/resources.qrc

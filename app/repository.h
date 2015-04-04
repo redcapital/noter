@@ -7,6 +7,7 @@
 #include <QString>
 #include "sqlite3.h"
 #include "note.h"
+#include "resultset.h"
 
 class Repository : public QObject {
 	Q_OBJECT
@@ -19,16 +20,13 @@ private:
 	bool checkSqliteError(int error);
 
 public:
-	typedef std::shared_ptr<Note> NotePtr;
-	typedef std::vector<NotePtr> ResultSet;
-	typedef std::unique_ptr<ResultSet> ResultSetPtr;
 	void disconnect();
 	Q_INVOKABLE bool connect(QString filepath, bool isExisting);
 	Q_INVOKABLE QString getLastError() const;
+	Q_INVOKABLE Note* createNote();
 	Q_INVOKABLE bool persistNote(Note* note);
 	Q_INVOKABLE bool deleteNote(Note* note);
-	ResultSetPtr search(const QString& query);
-	NotePtr createNote();
+	Q_INVOKABLE ResultSet* search(const QString& query);
 	virtual ~Repository();
 };
 

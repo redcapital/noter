@@ -122,10 +122,10 @@ bool Repository::connect(QString filepath, bool isExisting)
 	return true;
 }
 
-Repository::ResultSetPtr Repository::search(const QString& query)
+// Caller MUST free the returned pointer
+ResultSet* Repository::search(const QString& query)
 {
 	assert(this->database);
-	ResultSetPtr result(new ResultSet);
 	sqlite3_stmt* stmt;
 	sqlite3_prepare_v2(
 		this->database,
@@ -141,16 +141,7 @@ Repository::ResultSetPtr Repository::search(const QString& query)
 	buffer.insert(0, '%');
 	buffer.append('%');
 	sqlite3_bind_text(stmt, 1, buffer.constData(), -1, NULL);
-
-	while (sqlite3_step(stmt) == SQLITE_ROW) {
-		int id = sqlite3_column_int(stmt, 0);
-		int createdAt = sqlite3_column_int(stmt, 1);
-		int updatedAt = sqlite3_column_int(stmt, 2);
-		QString content((char*)sqlite3_column_text(stmt, 3));
-		result->push_back(make_shared<Note>(id, createdAt, updatedAt, content));
-	}
-	sqlite3_finalize(stmt);
-	return result;
+	return new ResultSet(stmt);
 }
 
 void Repository::disconnect()
@@ -172,7 +163,6 @@ bool Repository::persistNote(Note *note)
 	if (!note->isDirty()) {
 		return true;
 	}
-	time_t now = time(nullptr);
 	sqlite3_exec(this->database, "BEGIN", NULL, NULL, NULL);
 	sqlite3_stmt* stmt;
 	sqlite3_prepare_v2(
@@ -193,17 +183,17 @@ bool Repository::persistNote(Note *note)
 		&stmt,
 		NULL
 	);
-	sqlite3_bind_int(stmt, 1, now);
+	sqlite3_bind_int(stmt, 1, note->getUpdatedAt());
 	sqlite3_bind_int(stmt, 2, note->getId());
 	sqlite3_step(stmt);
 	sqlite3_finalize(stmt);
 	sqlite3_exec(this->database, "COMMIT", NULL, NULL, NULL);
-	note->setUpdatedAt(now);
 	note->resetDirty();
 	return true;
 }
 
-Repository::NotePtr Repository::createNote()
+// Caller MUST free the returned pointer
+Note* Repository::createNote()
 {
 	sqlite3_stmt* stmt;
 	sqlite3_prepare_v2(
@@ -220,8 +210,7 @@ Repository::NotePtr Repository::createNote()
 	sqlite3_finalize(stmt);
 
 	int id = sqlite3_last_insert_rowid(this->database);
-	auto note = make_shared<Note>(id, now, now, "");
-	return note;
+	return new Note(id, now, now, "");
 }
 
 bool Repository::deleteNote(Note *note)

@@ -3,46 +3,59 @@ import com.github.galymzhan 0.1
 import 'Flux.js' as Flux
 
 QtObject {
-	property var dispatcher
-
 	// Active note (or null if none)
 	property Note note: null
 
 	// Model that feeds data to a listview
-	readonly property var model: noteListModel
+	property ListModel model: ListModel {}
 
-	signal indexChanged(int newIndex)
+	property var _searchResults: ({})
 
 	Component.onCompleted: {
 		Flux.dispatcher.register(function(action) {
+			var index
 			switch (action.type) {
 				case Flux.Actions.SEARCH_NOTE:
 					if (note) {
 						repository.persistNote(note)
 					}
-					noteListModel.search(action.query)
+					model.clear()
+					_searchResults = {}
+					var list = repository.search(action.query)
+					while (list.hasMore()) {
+						var row = list.fetch()
+						model.append({ id: row.getId(), title: row.getTitle(), updatedAt: row.getUpdatedAt() })
+						_searchResults[row.getId()] = row
+					}
 					break
 
 				case Flux.Actions.SELECT_NOTE:
 					if (note) {
 						repository.persistNote(note)
 					}
-					note = noteListModel.get(action.index)
-					indexChanged(action.index)
+					note = _searchResults[action.id]
 					break
 
 				case Flux.Actions.CREATE_NOTE:
 					if (note) {
 						repository.persistNote(note)
 					}
-					noteListModel.create()
-					note = noteListModel.get(0)
-					indexChanged(0)
+					var created = repository.createNote()
+					_searchResults[created.getId()] = created
+					model.insert(0, { id: created.getId(), title: created.getTitle(), updatedAt: created.getUpdatedAt() })
+					note = created
 					break
 
 				case Flux.Actions.UPDATE_NOTE:
 					if (note) {
-						noteListModel.update(note, action.content)
+						var changed = note.setContent(action.content)
+						if (!changed) return false
+						note.setUpdatedAt(Date.now() / 1000)
+						index = _findModelIndex(note.getId())
+						if (index >= 0) {
+							model.set(index, { title: note.getTitle(), updatedAt: note.getUpdatedAt() })
+						}
+						if (index > 0) model.move(index, 0, 1)
 					}
 					break
 
@@ -54,12 +67,24 @@ QtObject {
 
 				case Flux.Actions.DELETE_NOTE:
 					if (note) {
-						noteListModel.deleteNote(note)
+						var id = note.getId()
+						index = _findModelIndex(id)
+						if (index >= 0) model.remove(index)
+						repository.deleteNote(note)
+						if (_searchResults[id]) delete _searchResults[id]
 						note = null
-						indexChanged(-1)
 					}
 					break
 			}
 		})
+	}
+
+	function _findModelIndex(id) {
+		for (var i = 0; i < model.count; i++) {
+			if (model.get(i).id === id) {
+				return i
+			}
+		}
+		return -1
 	}
 }

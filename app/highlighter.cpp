@@ -7,7 +7,7 @@
 
 WorkerThread::~WorkerThread()
 {
-	if (result != NULL) {
+	if (result != nullptr) {
 		pmh_free_elements(result);
 	}
 	free(content);
@@ -15,22 +15,18 @@ WorkerThread::~WorkerThread()
 
 void WorkerThread::run()
 {
-	if (content == NULL) {
+	if (content == nullptr) {
 		return;
 	}
 	pmh_markdown_to_elements(content, pmh_EXT_NONE, &result);
 }
 
 
-MarkdownHighlighter::MarkdownHighlighter(QTextDocument *parent, int aWaitInterval) : QObject(parent), waitInterval(aWaitInterval)
+MarkdownHighlighter::MarkdownHighlighter(QTextDocument *_document, int waitInterval) : document(_document)
 {
-	workerThread = NULL;
-	cached_elements = NULL;
-	timer = new QTimer(this);
-	timer->setSingleShot(true);
-	timer->setInterval(aWaitInterval);
-	connect(timer, SIGNAL(timeout()), this, SLOT(timerTimeout()));
-	document = parent;
+	timer.setSingleShot(true);
+	timer.setInterval(waitInterval);
+	connect(&timer, SIGNAL(timeout()), this, SLOT(timerTimeout()));
 	connect(document, SIGNAL(contentsChange(int,int,int)), this, SLOT(handleContentsChange(int,int,int)));
 	this->parse();
 }
@@ -45,15 +41,25 @@ void MarkdownHighlighter::clearFormatting()
 	QTextBlock block = document->firstBlock();
 	while (block.isValid()) {
 		block.layout()->clearAdditionalFormats();
+		block = block.next();
+	}
+}
+
+void MarkdownHighlighter::applyLineHeight()
+{
+	QTextBlock block = document->firstBlock();
+	while (block.isValid()) {
 		QTextCursor cursor(block);
 		QTextBlockFormat format = cursor.blockFormat();
-		if (true || format.lineHeightType() != QTextBlockFormat::ProportionalHeight) {
-			format.setLineHeight(130, QTextBlockFormat::ProportionalHeight);
+		// Don't apply lineHeight if it's already applied it to this block
+		if (format.lineHeightType() != QTextBlockFormat::ProportionalHeight) {
+			format.setLineHeight(140, QTextBlockFormat::ProportionalHeight);
 			cursor.setBlockFormat(format);
 		}
 		block = block.next();
 	}
 }
+
 
 bool MarkdownHighlighter::formatLessThan(const QTextLayout::FormatRange &r1, const QTextLayout::FormatRange &r2)
 {
@@ -63,12 +69,10 @@ bool MarkdownHighlighter::formatLessThan(const QTextLayout::FormatRange &r1, con
 
 void MarkdownHighlighter::highlight()
 {
-	if (cached_elements == NULL) {
-		qDebug() << "cached_elements is NULL";
+	if (cached_elements == nullptr) {
+		// Shouldn't happen
 		return;
 	}
-	static int cnt = 0;
-	qDebug() << "highlight called" << cnt++;
 
 	QHash<int, QList<QTextLayout::FormatRange> > lists;
 	QHash<int, QList<QTextLayout::FormatRange> >::iterator hashIter;
@@ -134,7 +138,7 @@ void MarkdownHighlighter::highlight()
 
 void MarkdownHighlighter::parse()
 {
-	if (workerThread != NULL && workerThread->isRunning()) {
+	if (workerThread && workerThread->isRunning()) {
 		parsePending = true;
 		return;
 	}
@@ -143,12 +147,9 @@ void MarkdownHighlighter::parse()
 	QByteArray ba = content.toUtf8();
 	char *content_cstring = strdup((char *)ba.data());
 
-	if (workerThread != NULL) {
-		delete workerThread;
-	}
-	workerThread = new WorkerThread();
+	workerThread.reset(new WorkerThread());
 	workerThread->content = content_cstring;
-	connect(workerThread, SIGNAL(finished()), this, SLOT(threadFinished()));
+	connect(workerThread.get(), SIGNAL(finished()), this, SLOT(threadFinished()));
 	parsePending = false;
 	workerThread->start();
 }
@@ -160,25 +161,38 @@ void MarkdownHighlighter::threadFinished()
 		return;
 	}
 
-	if (cached_elements != NULL) {
+	if (cached_elements != nullptr) {
 		pmh_free_elements(cached_elements);
 	}
 	cached_elements = workerThread->result;
-	workerThread->result = NULL;
+	workerThread->result = nullptr;
 
 	this->highlight();
 }
 
 void MarkdownHighlighter::handleContentsChange(int position, int charsRemoved, int charsAdded)
 {
-	if (charsRemoved == 0 && charsAdded == 0) {
+	// Character count is used as a poor way of determining whether contents
+	// really changed, because Qt emits contentsChange() signal for formatting
+	// changes too (which is what we do during highlight). Real hash function
+	// could be used although I doubt it's really necessary
+	if ((charsRemoved == 0 && charsAdded == 0) || lastCharCount == document->characterCount()) {
 		return;
 	}
-	timer->stop();
-	timer->start();
+	lastCharCount = document->characterCount();
+	// We want to apply line height immediately to prevent ugly relayout effect
+	this->applyLineHeight();
+	timer.start();
 }
 
 void MarkdownHighlighter::timerTimeout()
 {
 	this->parse();
+}
+
+MarkdownHighlighter::~MarkdownHighlighter()
+{
+	if (cached_elements != nullptr) {
+		pmh_free_elements(cached_elements);
+	}
 }

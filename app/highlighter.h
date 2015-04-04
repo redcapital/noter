@@ -3,6 +3,7 @@
 #ifndef HIGHLIGHTER_H
 #define HIGHLIGHTER_H
 
+#include <memory>
 #include <QTextCharFormat>
 #include <QThread>
 #include <QTextLayout>
@@ -34,30 +35,29 @@ class MarkdownHighlighter : public QObject
 	Q_OBJECT
 
 public:
-	MarkdownHighlighter(QTextDocument *parent = 0, int aWaitInterval = 2000);
+	MarkdownHighlighter(QTextDocument *document, int waitInterval = 2000);
 	void setStyles(QVector<HighlightingStyle> &styles);
 	static bool formatLessThan(const QTextLayout::FormatRange &r1, const QTextLayout::FormatRange &r2);
-	int waitInterval;
-
-protected:
+	virtual ~MarkdownHighlighter();
 
 private slots:
 	void handleContentsChange(int position, int charsRemoved, int charsAdded);
 	void threadFinished();
 	void timerTimeout();
 
-
 private:
-	QTimer *timer;
+	int lastCharCount = 0;
+	QTimer timer;
 	QTextDocument *document;
-	WorkerThread *workerThread;
+	std::unique_ptr<WorkerThread> workerThread;
 	bool parsePending;
-	pmh_element **cached_elements;
+	pmh_element **cached_elements = nullptr;
 	QVector<HighlightingStyle> highlightingStyles;
 
 	void clearFormatting();
 	void highlight();
 	void parse();
+	void applyLineHeight();
 };
 
 #endif

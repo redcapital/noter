@@ -53,12 +53,11 @@ private:
 	WorkerThread *workerThread;
 	bool parsePending;
 	pmh_element **cached_elements;
-	QVector<HighlightingStyle> *highlightingStyles;
+	QVector<HighlightingStyle> highlightingStyles;
 
 	void clearFormatting();
 	void highlight();
 	void parse();
-	void setDefaultStyles();
 };
 
 #endif

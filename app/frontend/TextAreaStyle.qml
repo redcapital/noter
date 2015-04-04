@@ -1,36 +1,36 @@
-import QtQuick 2.0
-import QtQuick.Controls.Styles 1.3
+import QtQuick 2.0 as Quick
+import QtQuick.Controls.Styles 1.3 as Styles
 import '.'
 
-TextAreaStyle {
-	backgroundColor: Theme.backgroundColor
-	textColor: Theme.textColor
-	font.family: Theme.fontFamily
-	font.pixelSize: Theme.baseFontSize
+Styles.TextAreaStyle {
+	backgroundColor: Theme.editorConfig.backgroundColor
+	textColor: Theme.editorConfig.textColor
+	font.family: Theme.editorConfig.fontFamily
+	font.pixelSize: Theme.editorConfig.fontSize
 
 	scrollToClickedPosition: true
 	transientScrollBars: true
 
-	handle: Item {
+	handle: Quick.Item {
 		implicitWidth: 10
 		implicitHeight: 26
-		Rectangle {
+		Quick.Rectangle {
 			anchors.fill: parent
 			color: Qt.lighter(Theme.backgroundColor, 1.8)
 			radius: parent.implicitWidth / 2
 		}
 	}
 
-	scrollBarBackground: Item {
+	scrollBarBackground: Quick.Item {
 		implicitWidth: 5
 		implicitHeight: 10
-		MouseArea {
+		Quick.MouseArea {
 			id: mouse
 			anchors.fill: parent
 			hoverEnabled: true
 		}
 	}
 
-	incrementControl: Item {}
-	decrementControl: Item {}
+	incrementControl: Quick.Item {}
+	decrementControl: Quick.Item {}
 }

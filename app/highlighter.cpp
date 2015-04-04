@@ -24,7 +24,6 @@ void WorkerThread::run()
 
 MarkdownHighlighter::MarkdownHighlighter(QTextDocument *parent, int aWaitInterval) : QObject(parent), waitInterval(aWaitInterval)
 {
-	highlightingStyles = NULL;
 	workerThread = NULL;
 	cached_elements = NULL;
 	timer = new QTimer(this);
@@ -38,60 +37,7 @@ MarkdownHighlighter::MarkdownHighlighter(QTextDocument *parent, int aWaitInterva
 
 void MarkdownHighlighter::setStyles(QVector<HighlightingStyle> &styles)
 {
-	this->highlightingStyles = &styles;
-}
-
-
-#define STY(type, format) styles->append((HighlightingStyle){type, format})
-void MarkdownHighlighter::setDefaultStyles()
-{
-	QVector<HighlightingStyle> *styles = new QVector<HighlightingStyle>();
-
-	QTextCharFormat headers; headers.setForeground(QBrush(QColor("#228d1b")));
-	headers.setFontWeight(QFont::Bold);
-	STY(pmh_H1, headers);
-	STY(pmh_H2, headers);
-	STY(pmh_H3, headers);
-	STY(pmh_H4, headers);
-	STY(pmh_H5, headers);
-	STY(pmh_H6, headers);
-
-	QTextCharFormat hrule; hrule.setForeground(QBrush(QColor("#fd971f")));
-	STY(pmh_HRULE, hrule);
-
-	QTextCharFormat list; list.setForeground(QBrush(QColor("#ffd54f")));
-	STY(pmh_LIST_BULLET, list);
-	STY(pmh_LIST_ENUMERATOR, list);
-
-	QTextCharFormat link; link.setForeground(QBrush(QColor("#03a9f4")));
-	STY(pmh_LINK, link);
-	STY(pmh_AUTO_LINK_URL, link);
-	STY(pmh_AUTO_LINK_EMAIL, link);
-	STY(pmh_REFERENCE, link);
-
-	QTextCharFormat image; image.setForeground(QBrush(QColor("#008080")));
-	STY(pmh_IMAGE, image);
-
-	QTextCharFormat code; code.setForeground(QBrush(QColor("#8bc34a")));
-	STY(pmh_CODE, code);
-	STY(pmh_VERBATIM, code);
-
-	QTextCharFormat emph; emph.setForeground(QBrush(QColor("#fc3e1b")));
-	emph.setFontItalic(true);
-	STY(pmh_EMPH, emph);
-
-	QTextCharFormat strong; strong.setForeground(QBrush(QColor("#fc3e1b")));
-	strong.setFontWeight(QFont::Bold);
-	STY(pmh_STRONG, strong);
-
-	QTextCharFormat comment; comment.setForeground(QBrush(QColor("#616161")));
-	STY(pmh_COMMENT, comment);
-
-	QTextCharFormat blockquote; blockquote.setForeground(QBrush(QColor("#fece3f")));
-	blockquote.setFontItalic(true);
-	STY(pmh_BLOCKQUOTE, blockquote);
-
-	this->setStyles(*styles);
+	this->highlightingStyles = styles;
 }
 
 void MarkdownHighlighter::clearFormatting()
@@ -99,6 +45,12 @@ void MarkdownHighlighter::clearFormatting()
 	QTextBlock block = document->firstBlock();
 	while (block.isValid()) {
 		block.layout()->clearAdditionalFormats();
+		QTextCursor cursor(block);
+		QTextBlockFormat format = cursor.blockFormat();
+		if (true || format.lineHeightType() != QTextBlockFormat::ProportionalHeight) {
+			format.setLineHeight(130, QTextBlockFormat::ProportionalHeight);
+			cursor.setBlockFormat(format);
+		}
 		block = block.next();
 	}
 }
@@ -115,19 +67,17 @@ void MarkdownHighlighter::highlight()
 		qDebug() << "cached_elements is NULL";
 		return;
 	}
+	static int cnt = 0;
+	qDebug() << "highlight called" << cnt++;
 
 	QHash<int, QList<QTextLayout::FormatRange> > lists;
 	QHash<int, QList<QTextLayout::FormatRange> >::iterator hashIter;
 	QList<QTextBlock> blocks;
 
-	if (highlightingStyles == NULL) {
-		this->setDefaultStyles();
-	}
-
 	this->clearFormatting();
 
-	for (int i = 0; i < highlightingStyles->size(); i++) {
-		HighlightingStyle style = highlightingStyles->at(i);
+	for (int i = 0; i < highlightingStyles.size(); i++) {
+		HighlightingStyle style = highlightingStyles.at(i);
 		pmh_element *elem_cursor = cached_elements[style.type];
 		while (elem_cursor != NULL) {
 			if (elem_cursor->end <= elem_cursor->pos) {

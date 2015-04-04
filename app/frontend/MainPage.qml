@@ -1,5 +1,5 @@
 import QtQuick 2.0 as Quick
-import QtQml 2.2
+import QtQml 2.2 as Qml
 import QtQuick.Controls 1.2 as Controls
 import QtQuick.Layouts 1.1 as Layouts
 import QtQuick.Dialogs 1.2 as Dialogs
@@ -68,7 +68,7 @@ Quick.Item {
 					var date = new Date(noteStore.note.getCreatedAt() * 1000)
 					return date.toLocaleDateString(Qt.locale(), 'dd MMM yyyy, dddd')
 							+ "\n"
-							+ date.toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
+							+ date.toLocaleTimeString(Qt.locale(), Qml.Locale.ShortFormat)
 				}
 
 				font.family: Theme.fontFamily
@@ -91,6 +91,7 @@ Quick.Item {
 		}
 
 		Controls.TextArea {
+			id: editor
 			anchors.left: parent.left
 			anchors.right: parent.right
 			anchors.top: controlsBar.bottom
@@ -98,15 +99,16 @@ Quick.Item {
 			anchors.bottom: parent.bottom
 			frameVisible: false
 			textMargin: 0
+			wrapMode: Quick.TextEdit.Wrap
 			enabled: noteStore.note
-			text: noteStore.note ? noteStore.note.getContent() : '<select a note>'
+			text: 'plz select a note'
 
 			Quick.Component.onCompleted: {
 				textAreaBackend.setDocument(textDocument)
+				textAreaBackend.setHighlightingRules(Theme.editorConfig)
 			}
 
-			style: TextAreaStyle {
-			}
+			style: TextAreaStyle {}
 
 			Quick.Timer {
 				interval: 200
@@ -116,7 +118,11 @@ Quick.Item {
 
 			Quick.Connections {
 				target: noteStore
-				onNoteChanged: persistTimer.stop()
+				onNoteChanged: {
+					// Store takes care of persisting if an active note changed
+					persistTimer.stop()
+					editor.text = noteStore.note ? noteStore.note.getContent() : 'plz select a note'
+				}
 			}
 
 			onTextChanged: {

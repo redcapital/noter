@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QTextDocument>
 #include <QQuickTextDocument>
+#include <QMap>
+#include <QVariant>
 #include "highlighter.h"
 
 class TextAreaBackend : public QObject
@@ -16,7 +18,7 @@ private:
 
 public:
 	Q_INVOKABLE void setDocument(QQuickTextDocument* _document);
-
+	Q_INVOKABLE void setHighlightingRules(const QVariantMap& rules);
 };
 
 #endif // TEXTAREABACKEND_H

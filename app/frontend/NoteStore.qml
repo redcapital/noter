@@ -3,6 +3,8 @@ import com.github.galymzhan 0.1
 import 'Flux.js' as Flux
 
 QtObject {
+	property string dispatchToken
+
 	// Active note (or null if none)
 	property Note note: null
 
@@ -12,7 +14,7 @@ QtObject {
 	property var _searchResults: ({})
 
 	Component.onCompleted: {
-		Flux.dispatcher.register(function(action) {
+		dispatchToken = Flux.dispatcher.register(function(action) {
 			var index
 			switch (action.type) {
 				case Flux.Actions.SEARCH_NOTE:
@@ -75,6 +77,11 @@ QtObject {
 						note = null
 					}
 					break
+
+				case Flux.Actions.CONNECT_DATABASE:
+					_searchResults = {}
+					note = null
+					model.clear()
 			}
 		})
 	}

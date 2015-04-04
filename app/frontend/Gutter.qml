@@ -47,16 +47,17 @@ Quick.Rectangle {
 		}
 		menu: Controls.Menu {
 			Controls.MenuItem {
-				text: 'Create database'
+				action: createDatabase
 			}
 			Controls.MenuItem {
-				text: 'Open database'
+				action: openDatabase
 			}
 			Controls.MenuItem {
 				text: 'About'
 			}
 			Controls.MenuItem {
 				text: 'Quit'
+				onTriggered: Qt.quit()
 			}
 		}
 	}

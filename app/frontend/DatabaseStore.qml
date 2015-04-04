@@ -3,6 +3,8 @@ import Qt.labs.settings 1.0
 import 'Flux.js' as Flux
 
 QtObject {
+	property string dispatchToken
+
 	property Settings settings
 
 	property string databaseFile: ''
@@ -11,14 +13,14 @@ QtObject {
 	signal error(string message)
 
 	Component.onCompleted: {
-		Flux.dispatcher.register(function(action) {
+		dispatchToken = Flux.dispatcher.register(function(action) {
 			switch (action.type) {
 				case Flux.Actions.CONNECT_DATABASE:
 					if (repository.connect(action.filepath, action.isOpening)) {
-						settings.lastDatabase = action.filepath
+						settings.lastDatabase = databaseFile = action.filepath
 						connected()
 					} else {
-						settings.lastDatabase = ''
+						settings.lastDatabase = databaseFile = ''
 						error(repository.getLastError())
 					}
 					break

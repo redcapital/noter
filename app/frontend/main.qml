@@ -12,6 +12,13 @@ Controls.ApplicationWindow {
 	width: 800
 	height: 600
 	color: Theme.backgroundColor
+	title: {
+		var title = databaseStore.databaseFile
+		if (title.substring(0, 7) === 'file://') title = title.substring(7)
+		if (title) title += ' - '
+		title += 'Noter'
+		return title
+	}
 
 	Settings {
 		id: settings
@@ -38,10 +45,9 @@ Controls.ApplicationWindow {
 		}
 
 		onError: {
+			mainPage.visible = false
+			startupPage.visible = true
 			showError(message)
-			if (!startupPage.visible && !mainPage.visible) {
-				startupPage.visible = true
-			}
 		}
 	}
 

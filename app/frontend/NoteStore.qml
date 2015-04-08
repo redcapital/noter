@@ -82,6 +82,7 @@ QtObject {
 					_searchResults = {}
 					note = null
 					model.clear()
+					break
 			}
 		})
 	}

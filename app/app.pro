@@ -25,7 +25,9 @@ HEADERS += \
 	highlighter.h \
 	../pmh/pmh_parser.h \
 	../pmh/pmh_definitions.h \
-	resultset.h
+	resultset.h \
+	tag.h \
+	taglist.h
 
 SOURCES += \
 	repository.cpp \
@@ -36,7 +38,9 @@ SOURCES += \
 	textareabackend.cpp \
 	highlighter.cpp \
 	../pmh/pmh_parser.c \
-	resultset.cpp
+	resultset.cpp \
+	tag.cpp \
+	taglist.cpp
 
 RESOURCES += \
 	frontend/resources.qrc

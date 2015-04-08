@@ -81,7 +81,11 @@ var Actions = Object.freeze({
 
 	// UI related
 	OPEN_SEARCH_PANEL: 7,
-	CLOSE_SEARCH_PANEL: 8
+	CLOSE_SEARCH_PANEL: 8,
+
+	// Tags
+	TAG: 9,
+	UNTAG: 10
 })
 
 // Export single instance of the dispatcher
@@ -147,4 +151,13 @@ var UiActions = Object.freeze({
 	closeSearchPanel: function() {
 		dispatcher.dispatch({ type: Actions.CLOSE_SEARCH_PANEL })
 	}
+})
+
+var TagActions = Object.freeze({
+	 tag: function(tagId) {
+		 dispatcher.dispatch({ type: Actions.TAG, tagId: tagId })
+	 },
+	 untag: function(tagId) {
+		 dispatcher.dispatch({ type: Actions.UNTAG, tagId: tagId })
+	 }
 })

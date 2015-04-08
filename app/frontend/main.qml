@@ -59,6 +59,10 @@ Controls.ApplicationWindow {
 		id: uiStore
 	}
 
+	TagStore {
+		id: tagStore
+	}
+
 	Quick.Component.onCompleted: {
 		if (settings.lastDatabase) {
 			Flux.DatabaseActions.connectDatabase(settings.lastDatabase, true)

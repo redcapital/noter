@@ -30,5 +30,7 @@
         <file>Gutter.qml</file>
         <file>SearchPanel.qml</file>
         <file>UiStore.qml</file>
+        <file>TagInput.qml</file>
+        <file>TagStore.qml</file>
     </qresource>
 </RCC>

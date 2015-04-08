@@ -1,6 +1,7 @@
+#include <sstream>
 #include "resultset.h"
 
-ResultSet::ResultSet(sqlite3_stmt* stmt_) : stmt(stmt_)
+ResultSet::ResultSet( Repository* _repository, sqlite3_stmt* _stmt) : repository(_repository), stmt(_stmt)
 {
 	doStep();
 }
@@ -24,7 +25,30 @@ void ResultSet::doStep()
 	int createdAt = sqlite3_column_int(stmt, 1);
 	int updatedAt = sqlite3_column_int(stmt, 2);
 	QString content((char*)sqlite3_column_text(stmt, 3));
-	lastResult = new Note(id, createdAt, updatedAt, content);
+	Note* note = new Note(id, createdAt, updatedAt, content);
+
+	std::vector<Tag*> tags;
+	const char* tagIdsString = (const char*)sqlite3_column_text(stmt, 4);
+	qDebug () << " tags str " << tagIdsString;
+	if (tagIdsString) {
+		int tagId;
+		std::stringstream tagIds(tagIdsString);
+		while (tagIds >> tagId) {
+			if (tagIds.peek() == ',') {
+				tagIds.ignore();
+			}
+			Tag* tag = repository->getTagById(tagId);
+			if (!tag) {
+				// Shouldn't happen
+				qWarning() << "Tag isn't present in the repository " << tagId;
+				continue;
+			}
+			tags.push_back(tag);
+		}
+	}
+	qDebug() << "setting " << tags.size() << " tags on a note";
+	note->setTags(new TagList(tags));
+	lastResult = note;
 }
 
 bool ResultSet::hasMore()

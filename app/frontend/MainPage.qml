@@ -90,11 +90,40 @@ Quick.Item {
 			}
 		}
 
+		TagInput {
+			id: tagInput
+			anchors.left: parent.left
+			anchors.right: parent.right
+			anchors.top: controlsBar.bottom
+			anchors.topMargin: 10
+			enabled: noteStore.note
+			z: 1
+
+			createTag: tagStore.createTag
+
+			autocompleteTag: tagStore.autocompleteTag
+
+			onTagged: {
+				console.log('tagged ', tagId)
+				Flux.TagActions.tag(tagId)
+			}
+
+			onUntagged: {
+				console.log('untagged ', tagId)
+				Flux.TagActions.untag(tagId)
+			}
+
+			Quick.Connections {
+				target: tagStore
+				onTagListReloaded: tagInput.model.reload(tagList)
+			}
+		}
+
 		Controls.TextArea {
 			id: editor
 			anchors.left: parent.left
 			anchors.right: parent.right
-			anchors.top: controlsBar.bottom
+			anchors.top: tagInput.bottom
 			anchors.topMargin: 20
 			anchors.bottom: parent.bottom
 			frameVisible: false

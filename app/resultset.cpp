@@ -1,3 +1,4 @@
+#include <vector>
 #include <sstream>
 #include "resultset.h"
 

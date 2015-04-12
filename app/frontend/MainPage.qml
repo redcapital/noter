@@ -105,12 +105,10 @@ Quick.Item {
 			autocompleteTag: tagStore.autocompleteTag
 
 			onTagged: {
-				console.log('tagged ', tagId)
 				Flux.TagActions.tag(tagId)
 			}
 
 			onUntagged: {
-				console.log('untagged ', tagId)
 				Flux.TagActions.untag(tagId)
 			}
 

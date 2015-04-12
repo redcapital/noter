@@ -175,7 +175,6 @@ void Repository::loadTags()
 		QString name((char*)sqlite3_column_text(stmt, 1));
 		tags.insert(id, new Tag(this, id, name));
 	}
-	qDebug() << tags.size() << " tags loaded";
 	sqlite3_finalize(stmt);
 }
 
@@ -346,7 +345,6 @@ void Repository::removeTag(Note* note, int tagId)
 {
 	Tag* tag = getTagById(tagId);
 	if (tag) {
-		qDebug() << "repo untagging " << note->getId() << ", tagid: " << tagId;
 		note->removeTag(tag);
 		sqlite3_stmt* stmt;
 		sqlite3_prepare_v2(

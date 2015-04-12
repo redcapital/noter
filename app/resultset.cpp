@@ -29,7 +29,6 @@ void ResultSet::doStep()
 
 	std::vector<Tag*> tags;
 	const char* tagIdsString = (const char*)sqlite3_column_text(stmt, 4);
-	qDebug () << " tags str " << tagIdsString;
 	if (tagIdsString) {
 		int tagId;
 		std::stringstream tagIds(tagIdsString);
@@ -46,7 +45,6 @@ void ResultSet::doStep()
 			tags.push_back(tag);
 		}
 	}
-	qDebug() << "setting " << tags.size() << " tags on a note";
 	note->setTags(new TagList(tags));
 	lastResult = note;
 }

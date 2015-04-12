@@ -122,6 +122,7 @@ Quick.FocusScope {
 							anchors.right: item.left
 							anchors.verticalCenter: parent.verticalCenter
 							anchors.rightMargin: 5
+							textFormat: Quick.TextEdit.PlainText
 						}
 
 						Quick.Text {
@@ -131,6 +132,7 @@ Quick.FocusScope {
 							font.family: Theme.fontFamily
 							font.pixelSize: Theme.baseFontSize
 							anchors.centerIn: parent
+							textFormat: Quick.TextEdit.PlainText
 						}
 
 						Quick.MouseArea {
@@ -149,6 +151,7 @@ Quick.FocusScope {
 							anchors.right: parent.right
 							anchors.verticalCenter: parent.verticalCenter
 							anchors.rightMargin: 5
+							textFormat: Quick.TextEdit.PlainText
 
 							Quick.MouseArea {
 								anchors.fill: parent
@@ -256,6 +259,7 @@ Quick.FocusScope {
 							color: index === autocompleteRepeater.selectedIndex ? Theme.textColor : '#000'
 							width: 200
 							elide: Quick.Text.ElideRight
+							textFormat: Quick.TextEdit.PlainText
 						}
 
 						Quick.MouseArea {

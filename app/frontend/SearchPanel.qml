@@ -68,6 +68,7 @@ Quick.Rectangle {
 					font.family: Theme.fontFamily
 					font.pixelSize: Theme.baseFontSize * 0.9
 					color: Theme.secondaryColor
+					textFormat: Quick.TextEdit.PlainText
 				}
 
 				Quick.Text {
@@ -79,6 +80,7 @@ Quick.Rectangle {
 					font.weight: Quick.Font.Bold
 					font.italic: title.length === 0
 					color: Theme.textColor
+					textFormat: Quick.TextEdit.PlainText
 				}
 			}
 

@@ -10,6 +10,7 @@ Quick.Column {
 		font.pixelSize: Theme.baseFontSize * 2
 		anchors.horizontalCenter: parent.horizontalCenter
 		text: qsTr('Welcome to Noter!')
+		textFormat: Quick.TextEdit.PlainText
 	}
 	Button {
 		action: openDatabase

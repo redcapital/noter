@@ -76,6 +76,7 @@ Quick.Item {
 				color: Theme.textColor
 				font.weight: Quick.Font.Bold
 				Layouts.Layout.fillWidth: true
+				textFormat: Quick.TextEdit.PlainText
 			}
 
 			Controls.Button {
@@ -131,6 +132,7 @@ Quick.Item {
 			wrapMode: Quick.TextEdit.Wrap
 			enabled: noteStore.note
 			text: 'plz select a note'
+			textFormat: Quick.TextEdit.PlainText
 
 			Quick.Component.onCompleted: {
 				textAreaBackend.setDocument(textDocument)

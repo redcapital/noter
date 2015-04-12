@@ -1,20 +1,19 @@
 TEMPLATE = app
 
-LIBS += ../sqlite/libsqlite.a
+LIBS += ../sqlite/build/libsqlite.a
 TARGET = ../noter
 
 INCLUDEPATH += ../pmh ../sqlite
 
 QT += qml quick
+CONFIG += c++11
 
-LIBS += -stdlib=libc++
-QMAKE_CXXFLAGS += -stdlib=libc++
-QMAKE_CXXFLAGS += -std=c++11
-
-# Stupid MacOS "deployment target" error
-QMAKE_CXXFLAGS += -mmacosx-version-min=10.7
-QMAKE_LFLAGS += -mmacosx-version-min=10.7
-QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.7
+macx {
+	# Stupid MacOS "deployment target" error
+	QMAKE_CXXFLAGS += -mmacosx-version-min=10.7
+	QMAKE_LFLAGS += -mmacosx-version-min=10.7
+	QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.7
+}
 
 HEADERS += \
 	repository.h \

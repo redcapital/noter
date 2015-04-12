@@ -18,8 +18,8 @@ QtObject {
 
 	// Text Editor
 	property var editorConfig: ({
-		fontFamily: 'Lato',
-		fontSize: 14,
+		fontFamily: 'Ubuntu Mono',
+		fontSize: 15,
 		textColor: '#fff',
 		backgroundColor: '#2C3E50',
 

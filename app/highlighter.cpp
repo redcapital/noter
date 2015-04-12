@@ -53,7 +53,7 @@ void MarkdownHighlighter::applyLineHeight()
 		QTextBlockFormat format = cursor.blockFormat();
 		// Don't apply lineHeight if it's already applied it to this block
 		if (format.lineHeightType() != QTextBlockFormat::ProportionalHeight) {
-			format.setLineHeight(140, QTextBlockFormat::ProportionalHeight);
+			format.setLineHeight(130, QTextBlockFormat::ProportionalHeight);
 			cursor.setBlockFormat(format);
 		}
 		block = block.next();

@@ -25,7 +25,7 @@ bool Repository::createSchema() {
 
 		"CREATE TABLE note (id INTEGER PRIMARY KEY, created_at INTEGER, updated_at INTEGER);"
 
-		"CREATE VIRTUAL TABLE note_content USING fts3 (content);"
+		"CREATE VIRTUAL TABLE note_content USING fts4 (content, tokenize=unicode61, matchinfo=fts3, prefix=\"10,20\");"
 
 		"CREATE TRIGGER note_delete AFTER DELETE ON note "
 		"BEGIN "

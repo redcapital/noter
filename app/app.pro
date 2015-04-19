@@ -1,6 +1,9 @@
 TEMPLATE = app
 
-LIBS += ../sqlite/build/libsqlite.a
+include(../common.pri)
+
+LIBS += ../sqlite/build/libsqlite.a -licui18n -licuuc -licudata
+
 TARGET = ../noter
 
 INCLUDEPATH += ../pmh ../sqlite

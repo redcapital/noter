@@ -11,6 +11,7 @@ desktop.ini
 # Compiled object files
 .obj
 *.o
+*.a
 Makefile*
 
 # Generated MOC, resource and UI files
@@ -26,6 +27,7 @@ Release/
 # Built windows .exe and linux binaries
 *.exe
 *.dll
+*.out
 
 # Visual Studio files
 *.sln

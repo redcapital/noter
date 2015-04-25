@@ -2,6 +2,7 @@
 #define REPOSITORY_H
 
 #include <memory>
+#include <vector>
 #include <QHash>
 #include <QObject>
 #include <QString>
@@ -21,11 +22,26 @@ private:
 	bool validateSchema();
 	bool checkSqliteError(int error);
 	void loadTags();
-	typedef QHash<int, Tag*> TagTable;
-	TagTable tags;
+	typedef QHash<int, Tag*> TagsById;
+	typedef QHash<QString, Tag*> TagsByName;
+	TagsById tagsById;
+	TagsByName tagsByName;
 
 public:
+
+	struct QueryTerm {
+		bool negated = false;
+		bool phrase = false;
+		QString body;
+		enum TermType {
+			TERM_NORMAL,
+			TERM_TILDE,
+			TERM_TAG
+		} type;
+	};
+
 	void disconnect();
+	std::vector<QueryTerm> parseQuery(const QString& query) const;
 	Q_INVOKABLE bool connect(QString filepath, bool isExisting);
 	Q_INVOKABLE QString getLastError() const;
 

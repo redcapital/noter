@@ -127,21 +127,101 @@ bool Repository::connect(QString filepath, bool isExisting)
 ResultSet* Repository::search(const QString& query)
 {
 	assert(this->database);
+	QStringList normalTerms, tildeTerms, notTerms;
+	QString includeTags, excludeTags;
+	auto terms = parseQuery(query);
+	for (const auto &term : terms) {
+		if (term.type == Repository::QueryTerm::TERM_TAG) {
+			TagsByName::const_iterator it = tagsByName.find(term.body);
+			if (term.negated) {
+				if (it != tagsByName.constEnd()) {
+					if (!excludeTags.isEmpty()) {
+						excludeTags.append(',');
+					}
+					excludeTags.append(QString::number(it.value()->getId()));
+				}
+			} else {
+				if (it == tagsByName.constEnd()) {
+					// Tag doesn't exist, return empty resultset and be done
+					return new ResultSet(this);
+				}
+				if (!includeTags.isEmpty()) {
+					includeTags.append(',');
+				}
+				includeTags.append(QString::number(it.value()->getId()));
+			}
+			continue;
+		}
+
+		QString body = term.phrase ? ('"' + term.body + '"') : term.body;
+		if (term.negated) {
+			notTerms << body;
+		} else if (term.type == Repository::QueryTerm::TERM_NORMAL) {
+			normalTerms << body;
+		} else {
+			tildeTerms << body;
+		}
+	}
+	QString sql(
+		"SELECT n.id, n.created_at AS createdAt, n.updated_at AS updatedAt, nc.content, GROUP_CONCAT(t.tag_id) AS tags "
+		"FROM note n INNER JOIN note_content nc ON n.id = nc.rowid LEFT JOIN tagging t ON n.id = t.note_id "
+	);
+	QString matchCondition;
+	if (!normalTerms.empty()) {
+		matchCondition.append(normalTerms.join(" AND "));
+	}
+	if (!tildeTerms.empty()) {
+		if (!matchCondition.isEmpty()) {
+			matchCondition.append(" AND ");
+		}
+		matchCondition.append('(');
+		matchCondition.append(tildeTerms.join(" OR "));
+		matchCondition.append(')');
+	}
+	if (!notTerms.isEmpty()) {
+		if (matchCondition.isEmpty()) {
+			// TODO handle Special case when only NOTs are present
+		}
+		matchCondition.append(" NOT ");
+		matchCondition.append(notTerms.join(" NOT "));
+	}
+
+
+	if (!includeTags.isEmpty()) {
+		sql.append("INNER JOIN tagging includeTags ON n.id = includeTags.note_id AND includeTags.tag_id IN ");
+		sql.append('(');
+		sql.append(includeTags);
+		sql.append(')');
+	}
+	if (!excludeTags.isEmpty()) {
+		sql.append("LEFT JOIN tagging excludeTags ON n.id != excludeTags.note_id AND excludeTags.tag_id IN ");
+		sql.append('(');
+		sql.append(excludeTags);
+		sql.append(')');
+	}
+	if (!matchCondition.isEmpty()) {
+		sql.append(" WHERE nc.content MATCH ':ftsQuery'");
+	}
+	sql.append(
+		" GROUP BY n.id "
+		" ORDER BY n.updated_at DESC"
+	);
+	qDebug() << sql;
+	qDebug() << matchCondition;
+
+	QByteArray sqlBuffer = sql.toUtf8();
 	sqlite3_stmt* stmt;
 	sqlite3_prepare_v2(
 		this->database,
-		"SELECT n.id, n.created_at AS createdAt, n.updated_at AS updatedAt, nc.content, GROUP_CONCAT(t.tag_id) AS tags "
-		"FROM note n INNER JOIN note_content nc ON n.id = nc.rowid LEFT OUTER JOIN tagging t ON n.id = t.note_id "
-		"WHERE nc.content LIKE :content GROUP BY n.id "
-		"ORDER BY n.updated_at DESC",
+		sqlBuffer.constData(),
 		-1,
 		&stmt,
 		NULL
 	);
-	QByteArray buffer = query.toUtf8();
-	buffer.insert(0, '%');
-	buffer.append('%');
-	sqlite3_bind_text(stmt, 1, buffer.constData(), -1, NULL);
+	if (!matchCondition.isEmpty()) {
+		QByteArray matchConditionBuffer = matchCondition.toUtf8();
+		sqlite3_bind_text(stmt, 1, matchConditionBuffer.constData(), -1, NULL);
+	}
 	return new ResultSet(this, stmt);
 }
 
@@ -149,17 +229,19 @@ void Repository::disconnect()
 {
 	sqlite3_close(this->database);
 	this->database = nullptr;
-	TagTable::const_iterator i = tags.constBegin();
-	while (i != tags.constEnd()) {
+	TagsById::const_iterator i = tagsById.constBegin();
+	while (i != tagsById.constEnd()) {
 		delete i.value();
 		i++;
 	}
-	tags.clear();
+	tagsById.clear();
+	tagsByName.clear();
 }
 
 void Repository::loadTags()
 {
-	tags.clear();
+	tagsById.clear();
+	tagsByName.clear();
 	assert(this->database);
 	sqlite3_stmt* stmt;
 	sqlite3_prepare_v2(
@@ -173,7 +255,9 @@ void Repository::loadTags()
 	while ((code = sqlite3_step(stmt)) == SQLITE_ROW) {
 		int id = sqlite3_column_int(stmt, 0);
 		QString name((char*)sqlite3_column_text(stmt, 1));
-		tags.insert(id, new Tag(this, id, name));
+		Tag *tag = new Tag(this, id, name);
+		tagsById.insert(id, tag);
+		tagsByName.insert(tag->getNormalizedName(), tag);
 	}
 	sqlite3_finalize(stmt);
 }
@@ -265,12 +349,9 @@ Tag* Repository::createTag(const QString& name)
 	if (normalized.isEmpty()) {
 		return nullptr;
 	}
-	TagTable::const_iterator i = tags.constBegin();
-	while (i != tags.constEnd()) {
-		if (i.value()->equalTo(normalized)) {
-			return i.value();
-		}
-		i++;
+	TagsByName::const_iterator i = tagsByName.find(normalized);
+	if (i != tagsByName.constEnd()) {
+		return i.value();
 	}
 	sqlite3_stmt* stmt;
 	sqlite3_prepare_v2(
@@ -285,7 +366,8 @@ Tag* Repository::createTag(const QString& name)
 	sqlite3_finalize(stmt);
 	int id = sqlite3_last_insert_rowid(this->database);
 	Tag* created = new Tag(this, id, normalized);
-	tags.insert(id, created);
+	tagsById.insert(id, created);
+	tagsByName.insert(created->getNormalizedName(), created);
 	return created;
 }
 
@@ -299,8 +381,8 @@ TagList* Repository::autocompleteTag(const QString& name, const QList<int>& disc
 	}
 	std::vector<Tag*> list;
 	int limit = 10;
-	TagTable::const_iterator i = tags.constBegin();
-	while (i != tags.constEnd()) {
+	TagsById::const_iterator i = tagsById.constBegin();
+	while (i != tagsById.constEnd()) {
 		if (!discardedIds.contains(i.key()) && i.value()->nameStartsWith(normalized)) {
 			list.push_back(i.value());
 			if (--limit == 0) {
@@ -314,8 +396,8 @@ TagList* Repository::autocompleteTag(const QString& name, const QList<int>& disc
 
 Tag* Repository::getTagById(int id)
 {
-	TagTable::const_iterator i = tags.constFind(id);
-	if (i == tags.constEnd()) {
+	TagsById::const_iterator i = tagsById.constFind(id);
+	if (i == tagsById.constEnd()) {
 		return nullptr;
 	}
 	return i.value();
@@ -359,4 +441,73 @@ void Repository::removeTag(Note* note, int tagId)
 		sqlite3_step(stmt);
 		sqlite3_finalize(stmt);
 	}
+}
+
+std::vector<Repository::QueryTerm> Repository::parseQuery(const QString& query) const
+{
+	std::vector<Repository::QueryTerm> result;
+	int i = 0, pos;
+	while (i < query.length()) {
+		if (query[i].isSpace()) {
+			++i;
+			continue;
+		}
+		Repository::QueryTerm term;
+		term.type = Repository::QueryTerm::TERM_NORMAL;
+		if (query[i] == '-') {
+			term.negated = true;
+			++i;
+		} else if (query[i] == '~') {
+			term.type = Repository::QueryTerm::TERM_TILDE;
+			++i;
+		}
+		if (query[i] == '#') {
+			// See if tilde wasn't encountered
+			if (term.type != Repository::QueryTerm::TERM_TILDE) {
+				term.type = Repository::QueryTerm::TERM_TAG;
+				++i;
+			}
+		}
+
+		if (i >= query.length()) {
+			continue;
+		}
+
+		if (query[i] == '"') {
+			term.phrase = true;
+			pos = query.indexOf('"', i + 1);
+			if (pos < 0) {
+				term.body = query.mid(i + 1);
+				i = query.length();
+			} else {
+				term.body = query.mid(i + 1, pos - i - 1);
+				i = pos + 1;
+			}
+		} else {
+			pos = query.indexOf(QRegExp("\\s"), i);
+			if (pos < 0) {
+				term.body = query.mid(i);
+				i = query.length();
+			} else {
+				term.body = query.mid(i, pos - i);
+				i = pos + 1;
+			}
+		}
+
+		if (term.type == Repository::QueryTerm::TERM_TAG) {
+			term.body = Tag::normalizeName(term.body);
+		} else {
+			// Replace characters that may mess up FTS query syntax
+			term.body.replace('(', ' ').replace(')', ' ').replace('"', ' ').replace('\'', ' ');
+
+			// Convert to lowercase, because some keywords like "AND" or "NEAR" have special meaning in FTS.
+			// This won't affect search results in any way, since it's case insensitive
+			term.body = term.body.trimmed().toLower();
+		}
+
+		if (!term.body.isEmpty()) {
+			result.push_back(term);
+		}
+	}
+	return result;
 }

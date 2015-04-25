@@ -17,7 +17,7 @@ private:
 
 public:
 	ResultSet() {}
-	ResultSet(Repository* _repository, sqlite3_stmt* _stmt);
+	ResultSet(Repository* _repository, sqlite3_stmt* _stmt = nullptr);
 	virtual ~ResultSet();
 	Q_INVOKABLE bool hasMore();
 	Q_INVOKABLE Note* fetch();

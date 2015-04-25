@@ -4,7 +4,9 @@
 
 ResultSet::ResultSet( Repository* _repository, sqlite3_stmt* _stmt) : repository(_repository), stmt(_stmt)
 {
-	doStep();
+	if (_stmt) {
+		doStep();
+	}
 }
 
 ResultSet::~ResultSet()
@@ -52,13 +54,13 @@ void ResultSet::doStep()
 
 bool ResultSet::hasMore()
 {
-	return lastResult != nullptr;
+	return stmt != nullptr && lastResult != nullptr;
 }
 
 // Caller MUST free the returned pointer
 Note* ResultSet::fetch()
 {
-	if (lastResult == nullptr) {
+	if (stmt == nullptr || lastResult == nullptr) {
 		return nullptr;
 	}
 	Note* result = lastResult;

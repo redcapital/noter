@@ -16,15 +16,13 @@ public:
 
 	unsigned int getId() const { return id; }
 	QString getName() const { return name; }
+	QString getNormalizedName() const { return normalizedName; }
 
 	// Returns normalized version of the name
 	static QString normalizeName(const QString& name);
 
 	// partialName must be normalized
 	bool nameStartsWith(const QString& partialName) const;
-
-	// anotherName must be normalized
-	bool equalTo(const QString& anotherName) const;
 
 private:
 	unsigned int id;

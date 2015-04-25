@@ -7,15 +7,10 @@ Tag::Tag(QObject *parent, int _id, const QString& _name) : QObject(parent), id(_
 
 bool Tag::nameStartsWith(const QString &partialName) const
 {
-	return normalizedName.startsWith(partialName.trimmed(), Qt::CaseInsensitive);
-}
-
-bool Tag::equalTo(const QString &anotherName) const
-{
-	return normalizedName.compare(anotherName.trimmed(), Qt::CaseInsensitive) == 0;
+	return normalizedName.startsWith(partialName, Qt::CaseSensitive);
 }
 
 QString Tag::normalizeName(const QString& name)
 {
-	return name.trimmed();
+	return name.trimmed().toCaseFolded();
 }

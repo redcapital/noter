@@ -44,6 +44,8 @@ bool Repository::createSchema() {
 		"tag_id INTEGER REFERENCES tag(id) ON UPDATE CASCADE ON DELETE CASCADE, "
 		"PRIMARY KEY (note_id, tag_id)"
 		");"
+
+		"CREATE INDEX idx_tag_id ON tagging(tag_id);"
 	;
 	return this->checkSqliteError(sqlite3_exec(this->database, statements, NULL, NULL, NULL));
 }
@@ -129,6 +131,7 @@ ResultSet* Repository::search(const QString& query)
 	assert(this->database);
 	QStringList normalTerms, tildeTerms, notTerms;
 	QString includeTags, excludeTags;
+	int includeTagsCount = 0;
 	auto terms = parseQuery(query);
 	for (const auto &term : terms) {
 		if (term.type == Repository::QueryTerm::TERM_TAG) {
@@ -149,6 +152,7 @@ ResultSet* Repository::search(const QString& query)
 					includeTags.append(',');
 				}
 				includeTags.append(QString::number(it.value()->getId()));
+				++includeTagsCount;
 			}
 			continue;
 		}
@@ -166,7 +170,8 @@ ResultSet* Repository::search(const QString& query)
 		"SELECT n.id, n.created_at AS createdAt, n.updated_at AS updatedAt, nc.content, GROUP_CONCAT(t.tag_id) AS tags "
 		"FROM note n INNER JOIN note_content nc ON n.id = nc.rowid LEFT JOIN tagging t ON n.id = t.note_id "
 	);
-	QString matchCondition;
+	QString where, matchCondition;
+	bool matchApplied = false;
 	if (!normalTerms.empty()) {
 		matchCondition.append(normalTerms.join(" AND "));
 	}
@@ -174,53 +179,70 @@ ResultSet* Repository::search(const QString& query)
 		if (!matchCondition.isEmpty()) {
 			matchCondition.append(" AND ");
 		}
-		matchCondition.append('(');
-		matchCondition.append(tildeTerms.join(" OR "));
-		matchCondition.append(')');
+		matchCondition.append('(').append(tildeTerms.join(" OR ")).append(')');
 	}
 	if (!notTerms.isEmpty()) {
 		if (matchCondition.isEmpty()) {
-			// TODO handle Special case when only NOTs are present
+			// Special case when only NOTs are present
+			where.append("n.id NOT IN (SELECT rowid FROM note_content WHERE content MATCH :ftsQuery)");
+			matchCondition = notTerms.join(" OR ");
+			matchApplied = true;
+		} else {
+			matchCondition.append(" NOT ").append(notTerms.join(" NOT "));
 		}
-		matchCondition.append(" NOT ");
-		matchCondition.append(notTerms.join(" NOT "));
 	}
 
-
-	if (!includeTags.isEmpty()) {
-		sql.append("INNER JOIN tagging includeTags ON n.id = includeTags.note_id AND includeTags.tag_id IN ");
-		sql.append('(');
-		sql.append(includeTags);
-		sql.append(')');
-	}
 	if (!excludeTags.isEmpty()) {
-		sql.append("LEFT JOIN tagging excludeTags ON n.id != excludeTags.note_id AND excludeTags.tag_id IN ");
-		sql.append('(');
-		sql.append(excludeTags);
-		sql.append(')');
+		if (!where.isEmpty()) {
+			where.append(" AND ");
+		}
+		where.append("n.id NOT IN (SELECT DISTINCT note_id FROM tagging WHERE tag_id IN (").append(excludeTags).append("))");
 	}
-	if (!matchCondition.isEmpty()) {
-		sql.append(" WHERE nc.content MATCH ':ftsQuery'");
+	if (!includeTags.isEmpty()) {
+		if (!where.isEmpty()) {
+			where.append(" AND ");
+		}
+		where.append("n.id IN (SELECT note_id FROM tagging WHERE tag_id IN (").append(includeTags).append(") GROUP BY note_id");
+		if (includeTagsCount > 1) {
+			where.append(" HAVING COUNT(*) = ").append(QString::number(includeTagsCount));
+		}
+		where.append(')');
+	}
+
+	if (!matchApplied && !matchCondition.isEmpty()) {
+		if (!where.isEmpty()) {
+			where.append(" AND ");
+		}
+		where.append("nc.content MATCH :ftsQuery");
+	}
+	if (!where.isEmpty()) {
+		sql.append(" WHERE ").append(where);
 	}
 	sql.append(
 		" GROUP BY n.id "
 		" ORDER BY n.updated_at DESC"
 	);
-	qDebug() << sql;
-	qDebug() << matchCondition;
+	qDebug() << "SQL: " << sql;
 
 	QByteArray sqlBuffer = sql.toUtf8();
 	sqlite3_stmt* stmt;
-	sqlite3_prepare_v2(
+	int code = sqlite3_prepare_v2(
 		this->database,
 		sqlBuffer.constData(),
 		-1,
 		&stmt,
 		NULL
 	);
+	if (code != SQLITE_OK) {
+		qDebug() << "ERR PREPARE: " << sqlite3_errstr(code);
+		// I don't expect this to happen, return empty for now
+		return new ResultSet(this);
+	}
 	if (!matchCondition.isEmpty()) {
-		QByteArray matchConditionBuffer = matchCondition.toUtf8();
-		sqlite3_bind_text(stmt, 1, matchConditionBuffer.constData(), -1, NULL);
+		matchCondition.insert(0, '\'');
+		matchCondition.append('\'');
+		qDebug() << "MATCH CONDITION: " << matchCondition;
+		code = sqlite3_bind_text(stmt, 1, matchCondition.toUtf8().constData(), -1, SQLITE_TRANSIENT);
 	}
 	return new ResultSet(this, stmt);
 }
@@ -498,7 +520,7 @@ std::vector<Repository::QueryTerm> Repository::parseQuery(const QString& query) 
 			term.body = Tag::normalizeName(term.body);
 		} else {
 			// Replace characters that may mess up FTS query syntax
-			term.body.replace('(', ' ').replace(')', ' ').replace('"', ' ').replace('\'', ' ');
+			term.body.replace(QRegExp("[()\"':]"), " ");
 
 			// Convert to lowercase, because some keywords like "AND" or "NEAR" have special meaning in FTS.
 			// This won't affect search results in any way, since it's case insensitive

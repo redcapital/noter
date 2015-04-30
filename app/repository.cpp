@@ -483,6 +483,11 @@ std::vector<Repository::QueryTerm> Repository::parseQuery(const QString& query) 
 			term.type = Repository::QueryTerm::TERM_TILDE;
 			++i;
 		}
+
+		if (i >= query.length()) {
+			continue;
+		}
+
 		if (query[i] == '#') {
 			// See if tilde wasn't encountered
 			if (term.type != Repository::QueryTerm::TERM_TILDE) {

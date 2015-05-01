@@ -20,7 +20,12 @@ ResultSet::~ResultSet()
 void ResultSet::doStep()
 {
 	int code = sqlite3_step(stmt);
+	if (code == SQLITE_DONE) {
+		lastResult = nullptr;
+		return;
+	}
 	if (code != SQLITE_ROW) {
+		qDebug() << "SQLITE err: " << sqlite3_errstr(code);
 		lastResult = nullptr;
 		return;
 	}

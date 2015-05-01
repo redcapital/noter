@@ -29,7 +29,8 @@ HEADERS += \
 	../pmh/pmh_definitions.h \
 	resultset.h \
 	tag.h \
-	taglist.h
+	taglist.h \
+	migrator.h
 
 SOURCES += \
 	repository.cpp \
@@ -42,7 +43,8 @@ SOURCES += \
 	../pmh/pmh_parser.c \
 	resultset.cpp \
 	tag.cpp \
-	taglist.cpp
+	taglist.cpp \
+	migrator.cpp
 
 RESOURCES += \
 	frontend/resources.qrc

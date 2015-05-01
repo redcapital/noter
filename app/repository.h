@@ -41,6 +41,7 @@ public:
 	};
 
 	void disconnect();
+	sqlite3* getSqliteDatabase() const { return database; }
 	std::vector<QueryTerm> parseQuery(const QString& query) const;
 	Q_INVOKABLE bool connect(QString filepath, bool isExisting);
 	Q_INVOKABLE QString getLastError() const;

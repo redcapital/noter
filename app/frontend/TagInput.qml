@@ -7,7 +7,7 @@ Quick.FocusScope {
 	height: input.height + 20
 
 	property string separator: ','
-	property int triggerAutocompleteAfter: 3
+	property int triggerAutocompleteAfter: 1
 	property alias model: tagList
 	property alias enabled: input.enabled
 

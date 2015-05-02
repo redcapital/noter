@@ -17,10 +17,6 @@ Quick.FocusScope {
 	signal tagged(int tagId)
 	signal untagged(int tagId)
 
-	Quick.MouseArea {
-		anchors.fill: parent
-		onClicked: root.forceActiveFocus()
-	}
 
 	Quick.Rectangle {
 		anchors.fill: parent
@@ -284,5 +280,10 @@ Quick.FocusScope {
 				visible = true
 			}
 		}
+	}
+
+	Quick.MouseArea {
+		anchors.fill: parent
+		onClicked: if (root.enabled) root.forceActiveFocus()
 	}
 }

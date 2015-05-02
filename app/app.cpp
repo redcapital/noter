@@ -8,7 +8,6 @@ QGuiApplication(argc, argv)
 	this->setApplicationName("noter");
 	this->setApplicationDisplayName("Noter");
 	this->setOrganizationName("noter");
-	this->setOrganizationDomain("com.github.galymzhan");
 	QSettings::setDefaultFormat(QSettings::IniFormat);
 	this->repository.reset(new Repository);
 	this->engine.reset(new QmlEngine);

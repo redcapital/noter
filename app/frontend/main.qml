@@ -22,6 +22,7 @@ Controls.ApplicationWindow {
 
 	Settings {
 		id: settings
+		category: DEBUG ? 'General_debug' : 'General'
 		property string lastDatabase
 	}
 

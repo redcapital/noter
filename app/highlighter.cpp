@@ -54,7 +54,12 @@ void MarkdownHighlighter::applyLineHeight()
 		// Don't apply lineHeight if it's already applied it to this block
 		if (format.lineHeightType() != QTextBlockFormat::ProportionalHeight) {
 			format.setLineHeight(130, QTextBlockFormat::ProportionalHeight);
+			// joining previous edit is crucial, otherwise formatting changes are recorded
+			// as separate operations in undo/redo stack, and pressing Ctrl-Z undoes
+			// line height changes, clearly not what we want
+			cursor.joinPreviousEditBlock();
 			cursor.setBlockFormat(format);
+			cursor.endEditBlock();
 		}
 		block = block.next();
 	}

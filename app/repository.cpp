@@ -120,6 +120,9 @@ bool Repository::connect(QString filepath, bool isExisting)
 		if (!this->validateSchema()) {
 			return false;
 		}
+		// Cleanup stuff
+		sqlite3_exec(this->database, "VACUUM", NULL, NULL, NULL);
+		sqlite3_exec(this->database, "DELETE FROM tag WHERE id NOT IN (SELECT DISTINCT tag_id FROM tagging)", NULL, NULL, NULL);
 	}
 	this->loadTags();
 	return true;

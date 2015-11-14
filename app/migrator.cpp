@@ -107,13 +107,14 @@ bool Migrator::migrate(const char* inputFile, const char* outputFile)
 	sqlite3_finalize(writeStmt);
 
 	// Migrate content
-	sqlite3_prepare_v2(
+	code = sqlite3_prepare_v2(
 		inputDb,
 		"SELECT rowid, content FROM note_content ORDER BY rowid",
 		-1,
 		&readStmt,
 		NULL
 	);
+	if (code != SQLITE_OK) qDebug() << sqlite3_errstr(code);
 	sqlite3_prepare_v2(
 		outputDb,
 		"UPDATE note_content SET content = :content WHERE rowid = :rowid",

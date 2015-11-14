@@ -2,7 +2,7 @@ TEMPLATE = app
 
 include(../common.pri)
 
-LIBS += ../sqlite/build/libsqlite.a -licui18n -licuuc -licudata
+LIBS += ../sqlite/build/libsqlite.a
 
 TARGET = ../noter
 

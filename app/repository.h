@@ -2,7 +2,7 @@
 #define REPOSITORY_H
 
 #include <memory>
-#include <vector>
+#include <list>
 #include <QHash>
 #include <QObject>
 #include <QString>
@@ -14,35 +14,22 @@ class ResultSet;
 
 class Repository : public QObject {
 	Q_OBJECT
-private:
-	sqlite3* database = nullptr;
-	QString lastError;
-	void configureConnection();
-	bool createSchema();
-	bool validateSchema();
-	bool checkSqliteError(int error);
-	void loadTags();
-	typedef QHash<int, Tag*> TagsById;
-	typedef QHash<QString, Tag*> TagsByName;
-	TagsById tagsById;
-	TagsByName tagsByName;
 
 public:
-
 	struct QueryTerm {
-		bool negated = false;
-		bool phrase = false;
 		QString body;
-		enum TermType {
-			TERM_NORMAL,
-			TERM_TILDE,
-			TERM_TAG
-		} type;
+		unsigned int attributes = 0;
+		enum Attribute {
+			TILDE = 1,
+			TAG = 2,
+			NEGATED = 4,
+			PHRASE = 8
+		};
 	};
 
 	void disconnect();
 	sqlite3* getSqliteDatabase() const { return database; }
-	std::vector<QueryTerm> parseQuery(const QString& query) const;
+
 	Q_INVOKABLE bool connect(QString filepath, bool isExisting);
 	Q_INVOKABLE QString getLastError() const;
 
@@ -58,6 +45,22 @@ public:
 	Q_INVOKABLE void removeTag(Note* note, int tagId);
 
 	virtual ~Repository();
+
+private:
+	sqlite3* database = nullptr;
+	QString lastError;
+	void configureConnection();
+	bool createSchema();
+	bool validateSchema();
+	bool checkSqliteError(int error);
+	void loadTags();
+	typedef QHash<int, Tag*> TagsById;
+	typedef QHash<QString, Tag*> TagsByName;
+	TagsById tagsById;
+	TagsByName tagsByName;
+	QString convertToFTSWord(const QString& word) const;
+	std::list<QueryTerm> parseQuery(const QString& query) const;
+	bool compileQuery(const std::list<QueryTerm>& terms, QString& sql, QString& ftsQuery) const;
 };
 
 #endif // REPOSITORY_H

@@ -25,7 +25,7 @@ bool Repository::createSchema() {
 
 		"CREATE TABLE note (id INTEGER PRIMARY KEY, created_at INTEGER, updated_at INTEGER);"
 
-		"CREATE VIRTUAL TABLE note_content USING fts4 (content, tokenize=unicode61, matchinfo=fts3, prefix=\"10,20\");"
+		"CREATE VIRTUAL TABLE note_content USING fts5 (content, tokenize='unicode61', prefix='10,20');"
 
 		"CREATE TRIGGER note_delete AFTER DELETE ON note "
 		"BEGIN "
@@ -132,101 +132,12 @@ bool Repository::connect(QString filepath, bool isExisting)
 ResultSet* Repository::search(const QString& query)
 {
 	assert(this->database);
-	QStringList normalTerms, tildeTerms, notTerms;
-	QString includeTags, excludeTags;
-	int includeTagsCount = 0;
-	auto terms = parseQuery(query);
-	for (const auto &term : terms) {
-		if (term.type == Repository::QueryTerm::TERM_TAG) {
-			TagsByName::const_iterator it = tagsByName.find(term.body);
-			if (term.negated) {
-				if (it != tagsByName.constEnd()) {
-					if (!excludeTags.isEmpty()) {
-						excludeTags.append(',');
-					}
-					excludeTags.append(QString::number(it.value()->getId()));
-				}
-			} else {
-				if (it == tagsByName.constEnd()) {
-					// Tag doesn't exist, return empty resultset and be done
-					return new ResultSet(this);
-				}
-				if (!includeTags.isEmpty()) {
-					includeTags.append(',');
-				}
-				includeTags.append(QString::number(it.value()->getId()));
-				++includeTagsCount;
-			}
-			continue;
-		}
-
-		QString body = term.phrase ? ('"' + term.body + '"') : term.body;
-		if (term.negated) {
-			notTerms << body;
-		} else if (term.type == Repository::QueryTerm::TERM_NORMAL) {
-			normalTerms << body;
-		} else {
-			tildeTerms << body;
-		}
+	QString sql, ftsQuery;
+	auto terms = this->parseQuery(query);
+	bool isValidQuery = this->compileQuery(terms, sql, ftsQuery);
+	if (!isValidQuery) {
+		return new ResultSet(this);
 	}
-	QString sql(
-		"SELECT n.id, n.created_at AS createdAt, n.updated_at AS updatedAt, nc.content, GROUP_CONCAT(t.tag_id) AS tags "
-		"FROM note n INNER JOIN note_content nc ON n.id = nc.rowid LEFT JOIN tagging t ON n.id = t.note_id "
-	);
-	QString where, matchCondition;
-	bool matchApplied = false;
-	if (!normalTerms.empty()) {
-		matchCondition.append(normalTerms.join(" AND "));
-	}
-	if (!tildeTerms.empty()) {
-		if (!matchCondition.isEmpty()) {
-			matchCondition.append(" AND ");
-		}
-		matchCondition.append('(').append(tildeTerms.join(" OR ")).append(')');
-	}
-	if (!notTerms.isEmpty()) {
-		if (matchCondition.isEmpty()) {
-			// Special case when only NOTs are present
-			where.append("n.id NOT IN (SELECT rowid FROM note_content WHERE content MATCH :ftsQuery)");
-			matchCondition = notTerms.join(" OR ");
-			matchApplied = true;
-		} else {
-			matchCondition.append(" NOT ").append(notTerms.join(" NOT "));
-		}
-	}
-
-	if (!excludeTags.isEmpty()) {
-		if (!where.isEmpty()) {
-			where.append(" AND ");
-		}
-		where.append("n.id NOT IN (SELECT DISTINCT note_id FROM tagging WHERE tag_id IN (").append(excludeTags).append("))");
-	}
-	if (!includeTags.isEmpty()) {
-		if (!where.isEmpty()) {
-			where.append(" AND ");
-		}
-		where.append("n.id IN (SELECT note_id FROM tagging WHERE tag_id IN (").append(includeTags).append(") GROUP BY note_id");
-		if (includeTagsCount > 1) {
-			where.append(" HAVING COUNT(*) = ").append(QString::number(includeTagsCount));
-		}
-		where.append(')');
-	}
-
-	if (!matchApplied && !matchCondition.isEmpty()) {
-		if (!where.isEmpty()) {
-			where.append(" AND ");
-		}
-		where.append("nc.content MATCH :ftsQuery");
-	}
-	if (!where.isEmpty()) {
-		sql.append(" WHERE ").append(where);
-	}
-	sql.append(
-		" GROUP BY n.id "
-		" ORDER BY n.updated_at DESC"
-	);
-	qDebug() << "SQL: " << sql;
-
 	QByteArray sqlBuffer = sql.toUtf8();
 	sqlite3_stmt* stmt;
 	int code = sqlite3_prepare_v2(
@@ -241,11 +152,8 @@ ResultSet* Repository::search(const QString& query)
 		// I don't expect this to happen, return empty for now
 		return new ResultSet(this);
 	}
-	if (!matchCondition.isEmpty()) {
-		matchCondition.insert(0, '\'');
-		matchCondition.append('\'');
-		qDebug() << "MATCH CONDITION: " << matchCondition;
-		code = sqlite3_bind_text(stmt, 1, matchCondition.toUtf8().constData(), -1, SQLITE_TRANSIENT);
+	if (!ftsQuery.isEmpty()) {
+		code = sqlite3_bind_text(stmt, 1, ftsQuery.toUtf8().constData(), -1, SQLITE_TRANSIENT);
 	}
 	return new ResultSet(this, stmt);
 }
@@ -468,22 +376,48 @@ void Repository::removeTag(Note* note, int tagId)
 	}
 }
 
-std::vector<Repository::QueryTerm> Repository::parseQuery(const QString& query) const
+/**
+ * Parse a search query. Note that we use a different, simpler syntax than FTS5
+ *
+ * Examples of queries:
+ *
+ * apple banana - containing "apple" and "banana"
+ * ~apple ~banana ~lemon - containing either "apple", "banana" or "lemon"
+ * "fresh apples" - containing the exact phrase "fresh apples"
+ * -apple - not containing "apple"
+ * #work - tagged with "work"
+ * -#work - not tagged with "work"
+ * app* - containing words that start with "app", e.g. "apples" or "application"
+ * file ~word ~excel #work -#urgent - containing "file" and either "word" or "excel",
+ *   and tagged with "work" but not "urgent"
+ *
+ *
+ * Grammar in EBNF:
+ *
+ * query := { [ { whitespace } ] , term , [ { whitespace } ] } ;
+ * term  := ['-' | '~'] , '"' , phrase , '"' ;
+ * term  :=	['-' | '~'] , word ;
+ * term  := ['-'] , '#' , word ;
+ * phrase:= ? A sequence of any characters that is not a double quote ?;
+ * word  := ? A sequence of any characters that is not a whitespace ? ;
+ *
+ */
+list<Repository::QueryTerm> Repository::parseQuery(const QString& query) const
 {
-	std::vector<Repository::QueryTerm> result;
-	int i = 0, pos;
+	list<Repository::QueryTerm> result;
+	QRegExp termBoundary("\\s");
+	int i = 0;
 	while (i < query.length()) {
 		if (query[i].isSpace()) {
 			++i;
 			continue;
 		}
 		Repository::QueryTerm term;
-		term.type = Repository::QueryTerm::TERM_NORMAL;
 		if (query[i] == '-') {
-			term.negated = true;
+			term.attributes |= Repository::QueryTerm::NEGATED;
 			++i;
 		} else if (query[i] == '~') {
-			term.type = Repository::QueryTerm::TERM_TILDE;
+			term.attributes |= Repository::QueryTerm::TILDE;
 			++i;
 		}
 
@@ -491,48 +425,35 @@ std::vector<Repository::QueryTerm> Repository::parseQuery(const QString& query) 
 			continue;
 		}
 
-		if (query[i] == '#') {
-			// See if tilde wasn't encountered
-			if (term.type != Repository::QueryTerm::TERM_TILDE) {
-				term.type = Repository::QueryTerm::TERM_TAG;
-				++i;
-			}
+		if (query[i] == '#' && (term.attributes & Repository::QueryTerm::TILDE) == 0) {
+			term.attributes |= Repository::QueryTerm::TAG;
+			++i;
 		}
 
 		if (i >= query.length()) {
 			continue;
 		}
 
-		if (query[i] == '"') {
-			term.phrase = true;
-			pos = query.indexOf('"', i + 1);
+		if (query[i] == '"' && (term.attributes & Repository::QueryTerm::TAG) == 0) {
+			// Phrase term, consume everything till the closing double quote
+			term.attributes |= Repository::QueryTerm::PHRASE;
+			int pos = query.indexOf('"', i + 1);
 			if (pos < 0) {
-				term.body = query.mid(i + 1);
+				term.body = query.mid(i + 1).trimmed();
 				i = query.length();
 			} else {
-				term.body = query.mid(i + 1, pos - i - 1);
+				term.body = query.mid(i + 1, pos - i - 1).trimmed();
 				i = pos + 1;
 			}
 		} else {
-			pos = query.indexOf(QRegExp("\\s"), i);
+			int pos = query.indexOf(termBoundary, i);
 			if (pos < 0) {
-				term.body = query.mid(i);
+				term.body = query.mid(i).trimmed();
 				i = query.length();
 			} else {
-				term.body = query.mid(i, pos - i);
+				term.body = query.mid(i, pos - i).trimmed();
 				i = pos + 1;
 			}
-		}
-
-		if (term.type == Repository::QueryTerm::TERM_TAG) {
-			term.body = Tag::normalizeName(term.body);
-		} else {
-			// Replace characters that may mess up FTS query syntax
-			term.body.replace(QRegExp("[()\"':]"), " ");
-
-			// Convert to lowercase, because some keywords like "AND" or "NEAR" have special meaning in FTS.
-			// This won't affect search results in any way, since it's case insensitive
-			term.body = term.body.trimmed().toLower();
 		}
 
 		if (!term.body.isEmpty()) {
@@ -540,4 +461,146 @@ std::vector<Repository::QueryTerm> Repository::parseQuery(const QString& query) 
 		}
 	}
 	return result;
+}
+
+/**
+ * Take a list of parsed terms and compile them into a SQL query
+ * @return whether the query might yield any result
+ */
+bool Repository::compileQuery(const std::list<QueryTerm>& terms, QString& sql, QString& ftsQuery) const
+{
+	QStringList normalTerms, tildeTerms, notTerms;
+	QStringList includeTags, excludeTags;
+	for (const auto &term : terms) {
+		if (term.attributes & Repository::QueryTerm::TAG) {
+			TagsByName::const_iterator it = tagsByName.find(Tag::normalizeName(term.body));
+			if (term.attributes & Repository::QueryTerm::NEGATED) {
+				if (it != tagsByName.constEnd()) {
+					excludeTags.append(QString::number(it.value()->getId()));
+				}
+			} else {
+				if (it == tagsByName.constEnd()) {
+					// Tag doesn't exist, so search won't yield results
+					return false;
+				}
+				includeTags.append(QString::number(it.value()->getId()));
+			}
+			continue;
+		}
+
+		QString ftsString;
+		if (term.attributes & Repository::QueryTerm::PHRASE) {
+			QStringList phraseWords;
+			for (const auto &word : term.body.split(QRegExp("\\s"), QString::SkipEmptyParts)) {
+				phraseWords.append(this->convertToFTSWord(word));
+			}
+			ftsString = QLatin1Char('(') + phraseWords.join(" + ") + QLatin1Char(')');
+		} else {
+			ftsString = this->convertToFTSWord(term.body);
+		}
+
+		if (term.attributes & Repository::QueryTerm::NEGATED) {
+			notTerms.append(ftsString);
+		} else if (term.attributes & Repository::QueryTerm::TILDE) {
+			tildeTerms.append(ftsString);
+		} else {
+			normalTerms.append(ftsString);
+		}
+	}
+
+	sql = "SELECT n.id, n.created_at AS createdAt, n.updated_at AS updatedAt, nc.content, GROUP_CONCAT(t.tag_id) AS tags "
+		"FROM note n INNER JOIN note_content nc ON n.id = nc.rowid LEFT JOIN tagging t ON n.id = t.note_id ";
+	ftsQuery.clear();
+
+	QStringList where;
+	bool matchApplied = false;
+	if (!normalTerms.empty()) {
+		ftsQuery.append(normalTerms.join(" AND "));
+	}
+	if (!tildeTerms.empty()) {
+		if (!ftsQuery.isEmpty()) {
+			ftsQuery.append(" AND ");
+		}
+		ftsQuery.append('(').append(tildeTerms.join(" OR ")).append(')');
+	}
+	if (!notTerms.isEmpty()) {
+		if (ftsQuery.isEmpty()) {
+			// Special case when only NOTs are present
+			where.append("n.id NOT IN (SELECT rowid FROM note_content WHERE content MATCH :ftsQuery)");
+			ftsQuery = notTerms.join(" OR ");
+			matchApplied = true;
+		} else {
+			ftsQuery.append(" NOT ").append(notTerms.join(" NOT "));
+		}
+	}
+
+	if (!excludeTags.isEmpty()) {
+		where.append(
+			QLatin1String("n.id NOT IN (SELECT DISTINCT note_id FROM tagging WHERE tag_id IN (") +
+			excludeTags.join(',') +
+			QLatin1String("))")
+		);
+	}
+	if (!includeTags.isEmpty()) {
+		QString condition(
+			QLatin1String("n.id IN (SELECT note_id FROM tagging WHERE tag_id IN (") +
+			includeTags.join(',') +
+			QLatin1String(") GROUP BY note_id")
+		);
+		if (includeTags.size() > 1) {
+			condition.append(" HAVING COUNT(*) = ").append(QString::number(includeTags.size()));
+		}
+		condition.append(')');
+		where.append(condition);
+	}
+
+	if (!matchApplied && !ftsQuery.isEmpty()) {
+		where.append("note_content MATCH :ftsQuery");
+	}
+	if (!where.isEmpty()) {
+		sql.append(" WHERE ").append(where.join(" AND "));
+	}
+	sql.append(" GROUP BY n.id ORDER BY n.updated_at DESC");
+	qDebug() << "SQL: " << sql;
+	if (!ftsQuery.isEmpty()) {
+		qDebug() << "FTS QUERY: " << ftsQuery;
+	}
+	return true;
+}
+
+/**
+ * Converts a word from the parser into a FTS5 word
+ *
+ * @see http://www.sqlite.org/fts5.html#section_3
+ */
+QString Repository::convertToFTSWord(const QString& word) const
+{
+	bool needsEscaping = false;
+	// Convert to lowercase, because some keywords like "AND" or "NEAR" have special meaning in FTS.
+	// This won't affect search results in any way, since it's case insensitive
+	QString result(word.toLower());
+	for (auto i = 0; i < result.length(); i++) {
+		ushort value = result[i].unicode();
+		if (
+			// Non-ASCII range characters
+			value > 127 ||
+			// Upper and lowercase ASCII characters
+			(value > 64 && value < 91) || (value > 96 && value < 123) ||
+			// Digits
+			(value > 47 && value < 58) ||
+			// Underscore and substitute characters
+			(value == 96 || value == 26)
+		) {
+			// No need to escape these
+			continue;
+		}
+		// Need to escape, with one exception: if '*' is used in a prefix
+		// search, it doesn't need escaping, e.g. abc*
+		needsEscaping = (i == 0 || i != (result.length() - 1) || value != 42);
+		break;
+	}
+	if (!needsEscaping) {
+		return result;
+	}
+	return QLatin1Char('"') + result.replace('"', "\"\"") + QLatin1Char('"');
 }

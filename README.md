@@ -5,12 +5,8 @@ General purpose note taker
 General steps should be common for all platforms:
 
 1. Get the sources
-2. Install Qt SDK 5.4. QML and Quick modules must be installed.
-  - Windows - install Qt SDK for Windows 32-bit (MinGW): http://www.qt.io/download-open-source/#section-2
-  - MacOS - use brew `brew install qt5` and install GCC or Clang
-  - Linux - use your package manager to get build deps
-3. Install ICU library
-4. Open noter.pro with Qt Creator and choose Build or Run
+2. Install Qt SDK >= 5.4. QML and Quick modules must be installed.
+3. Open noter.pro with Qt Creator and choose Build or Run
 
 Alternatively you can manually build with qmake:
 
